@@ -21,7 +21,7 @@ Installing the operator can be done by running the next commands on the hub clus
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
 metadata:
-  name: ansible-automation-operator-gp
+  name: ansible-automation-platform-operator
   namespace: ansible-automation-platform
 EOF
 
@@ -34,7 +34,7 @@ metadata:
   name: ansible-automation-operator
   namespace: ansible-automation-platform
 spec:
-  channel: stable-2.1-cluster-scoped
+  channel: stable-2.4-cluster-scoped
   installPlanApproval: Automatic
   name: ansible-automation-platform-operator
   source: redhat-operators
@@ -44,9 +44,49 @@ EOF
 <hub> $ oc apply -f ansible-operator.yaml
 ```
 
+Create the automation controller instance
+```
+<hub> $ cat >> automation-controller.yaml << EOF
+apiVersion: automationcontroller.ansible.com/v1beta1
+kind: AutomationController
+metadata:
+  name: automation-controller
+  namespace: ansible-automation-platform
+spec:
+  postgres_keepalives_count: 5
+  postgres_keepalives_idle: 5
+  create_preload_data: true
+  route_tls_termination_mechanism: Edge
+  garbage_collect_secrets: false
+  ingress_type: Route
+  loadbalancer_port: 80
+  no_log: true
+  image_pull_policy: IfNotPresent
+  projects_storage_size: 8Gi
+  auto_upgrade: true
+  task_privileged: false
+  postgres_keepalives: true
+  postgres_keepalives_interval: 5
+  ipv6_disabled: false
+  projects_storage_access_mode: ReadWriteMany
+  set_self_labels: true
+  projects_persistence: false
+  replicas: 1
+  admin_user: admin
+  loadbalancer_protocol: http
+EOF
+
+<hub> $ oc  apply -f automation-controller.yaml
+```
+
+## Using Kustomize 
+```
+oc apply -k https://github.com/redhat-cop/gitops-catalog/ansible-automation-platform/operator/overlays/stable-2.4-cluster-scoped
+```
+
 The operator will now begin the installation process.
 
-## Ansible Tower Application Integration
+## Ansible Controller Application Integration
 
 In this section, you will configure Ansible Tower Jobs to run as your RHACM Application deploys. The first job will run as a _prehook_ while the second job will run as a _posthook_. The _prehook_ runs before the application resources start the deployment process while the _posthook_ job runs as soon as the resources are deployed.
 
@@ -267,7 +307,7 @@ In this example you will create a policy that monitors whether a _forbidden name
 The next Policy will initiate an alert if a namespace with the name `forbidden-namespace` is present in the cluster. Apply the policy to the hub cluster -
 
 ```
-<hub> $ oc apply -f https://raw.githubusercontent.com/michaelkotelnikov/rhacm-workshop/master/07.Ansible-Tower-Integration/demo-policy/rhacm-resources/policy.yaml
+<hub> $ oc apply -f https://raw.githubusercontent.com/tosin2013/rhacm-workshop/master/07.Ansible-Tower-Integration/demo-policy/rhacm-resources/policy.yaml
 ```
 
 After creating the policy, make sure that the policy works as expected. Create a namespace with the name `forbidden-namespace`, on the managed cluster.

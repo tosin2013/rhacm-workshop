@@ -1,6 +1,6 @@
 # Advanced Cluster Management Workshop 
 
-This document concludes exercises and demonstrations for the Advanced Cluster Management workshop. The workshop is presented in - [https://docs.google.com/presentation/d/1LCPvIT_nF5hwnrfYdlD0Zie4zdDxc0kxZtW3Io5jfFk/edit?usp=sharing](https://docs.google.com/presentation/d/1LCPvIT_nF5hwnrfYdlD0Zie4zdDxc0kxZtW3Io5jfFk/edit?usp=sharing)
+This document concludes exercises and demonstrations for the Advanced Cluster Management workshop. The workshop is presented in - [https://docs.google.com/presentation/d/114op7K07TIOUhpTO1tVZUrJj6r1gzl6S7bu5OZl6rr8/edit?usp=sharing](https://docs.google.com/presentation/d/114op7K07TIOUhpTO1tVZUrJj6r1gzl6S7bu5OZl6rr8/edit?usp=sharing)
 
 Participants in the workshop must have -
 * A running OpenShift cluster.
