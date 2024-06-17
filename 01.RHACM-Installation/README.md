@@ -1,6 +1,7 @@
 # Exercise 1 - Advanced Cluster Management Installation 
 
-In this exercise you will install the Advanced Cluster Management for Kubernetes operator. In order to comply with the workshop's rationale please install Red Hat Advanced Cluster Management for Kubernetes 2.9. During the installation, when choosing the update channel, select **release-2.9**.
+In this exercise you will install the Advanced Cluster Management for Kubernetes operator. In order to comply with the workshop's rationale please install Red Hat Advanced Cluster Management for Kubernetes 2.10. During the installation, when choosing the update channel, select **release-2.10**.
+https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.10
 
 To install the up-to-date instance of Advanced Cluster Management, follow the steps presented in the **Installation** section of the workshop’s presentation - [https://docs.google.com/presentation/d/114op7K07TIOUhpTO1tVZUrJj6r1gzl6S7bu5OZl6rr8/edit?usp=sharing](https://docs.google.com/presentation/d/114op7K07TIOUhpTO1tVZUrJj6r1gzl6S7bu5OZl6rr8/edit?usp=sharing).
 
@@ -22,7 +23,6 @@ export aws_region="YOUR_AWS_REGION"
 export KUBECONFIG=/home/lab-user/cluster/auth/kubeconfig
 curl -OL https://gist.githubusercontent.com/tosin2013/866522a1420ac22f477d2253121b4416/raw/35d6fa88675d63b6ecf58a827df32356ccf3ddde/configure-keys-on-openshift.sh
 chmod +x configure-keys-on-openshift.sh
-configure-keys-on-openshift.sh
 ./configure-keys-on-openshift.sh <AWS_ACCESS_KEY> <AWS_SECRET_ACCESS_KEY> podman 
 ```
 

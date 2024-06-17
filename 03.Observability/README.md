@@ -96,6 +96,9 @@ metrics-collector-deployment-765946868-hmk5d      1/1     Running   0          2
 
 Now, that all pods are running, log into RHACM's dashboard and navigate to **Clusters** -> **Grafana (top right side)**. Make sure that the dashboards are available and graphs are present.
 
+### For additional install methods refer to the [official documentation](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.10/html-single/observability/index)
+You can also refer to this quick start for AWS Deployments and ODF Deployments  [Install MultiCluster Observability](https://github.com/tosin2013/acm-multi-cluster-dashboard/blob/main/install-acm-observability-service.md)
+
 ### 3.2 - Explore the default Grafana dashboards
 
 This part focuses on the default Grafana dashboards that come with RHACM. Each dashboard has its own characteristics and provides valuable information to a system administrator in the organization. This section contains multiple tasks that require you to look for certain values in the default dashboards that come with `MCO`.
