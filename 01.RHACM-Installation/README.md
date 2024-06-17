@@ -17,9 +17,9 @@ export aws_region="YOUR_AWS_REGION"
 ./openshift-ai-workload.sh m6i.2xlarge
 ```
 
-## Configure SSL Certs
+## Recommend: Configure SSL Certs
 ```
-export KUBECONFIG=/home/lab-user/cluster/auth/kubeconfi
+export KUBECONFIG=/home/lab-user/cluster/auth/kubeconfig
 curl -OL https://gist.githubusercontent.com/tosin2013/866522a1420ac22f477d2253121b4416/raw/35d6fa88675d63b6ecf58a827df32356ccf3ddde/configure-keys-on-openshift.sh
 chmod +x configure-keys-on-openshift.sh
 configure-keys-on-openshift.sh
