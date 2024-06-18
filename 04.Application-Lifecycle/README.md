@@ -405,7 +405,10 @@ The applications are based on one [helm](https://helm.sh/) chart. Each applicati
 To create the ApplicationSet resource run the next commands -
 
 ```
+<hub> $ curl -OL https://raw.githubusercontent.com/tosin2013/rhacm-workshop/master/04.Application-Lifecycle/demo-argocd/argocd-resources/appproject.yaml
+<hub> $ vim appproject.yaml # chagne line 12 to cluster name 
 <hub> $ oc apply -f https://raw.githubusercontent.com/tosin2013/rhacm-workshop/master/04.Application-Lifecycle/demo-argocd/argocd-resources/appproject.yaml
+<hub> $ oc apply -f appproject.yaml
 
 <hub> $ oc apply -f https://raw.githubusercontent.com/tosin2013/rhacm-workshop/master/04.Application-Lifecycle/demo-argocd/argocd-resources/applicationset.yaml
 ```

@@ -9,6 +9,7 @@ In this section you create and manage Gatekeeper policies. The policies are base
 Apply the next policy to the hub cluster. The policy installs the Gatekeeper operator on the managed cluster.
 
 ```
+<hub> $ oc new-project rhacm-policies
 <hub> $ cat >> policy-gatekeeper-operator.yaml << EOF
 ---
 apiVersion: policy.open-cluster-management.io/v1
