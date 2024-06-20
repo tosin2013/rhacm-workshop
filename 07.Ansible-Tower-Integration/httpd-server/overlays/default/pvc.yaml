@@ -1,0 +1,13 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: httpd-data-pvc
+  namespace: httpd-server
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 40Gi
+  storageClassName: ocs-storagecluster-cephfs
+  volumeMode: Filesystem

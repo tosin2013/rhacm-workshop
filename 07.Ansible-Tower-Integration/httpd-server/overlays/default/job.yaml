@@ -1,0 +1,25 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: httpd-index-download-copy-job
+spec:
+  template:
+    spec:
+      serviceAccountName:  httpd-sevice-account
+      containers:
+        - name: download-index
+          image: registry.access.redhat.com/ubi8
+          command: ["/bin/bash", "-c"]
+          args: 
+            - |
+              mkdir -p /opt/data
+              curl -o /opt/data/index.html https://raw.githubusercontent.com/sclorg/httpd-ex/master/index.html
+          volumeMounts:
+            - name: httpd-data-volume
+              mountPath: /opt/data # Mount the PVC containing index.html to / for copying
+      restartPolicy: Never
+      volumes:
+        - name: httpd-data-volume
+          persistentVolumeClaim:
+            claimName: httpd-data-pvc  # Reference the PVC name here
+  backoffLimit: 1

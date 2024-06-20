@@ -1,0 +1,16 @@
+kind: ImageStream
+apiVersion: image.openshift.io/v1
+metadata:
+  name: httpd-server
+  namespace: httpd-server
+  labels:
+    app: httpd-server
+    app.kubernetes.io/component: httpd-server
+    app.kubernetes.io/instance: httpd-server
+    app.kubernetes.io/name: httpd-server
+    app.kubernetes.io/part-of: httpd-server
+    app.openshift.io/runtime: httpd
+    app.openshift.io/runtime-version: 2.4-ubi9
+spec:
+  lookupPolicy:
+    local: false
