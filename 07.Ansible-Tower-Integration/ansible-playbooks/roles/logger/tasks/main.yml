@@ -1,21 +1,27 @@
 ---
-- name: Create log file directory
-  file:
-    path: "{{ log_file_path }}"
-    state: directory
+- name: Create log file directory in the httpd container
+  hosts: localhost
+  tasks:
+    - name: Validate connection to oc cluster
+      command: oc whoami
+      register: oc_login
+      ignore_errors: yes
 
-- name: Validate the log file
-  stat:
-    path: "{{ log_file_path }}/{{ log_file_name }}"
-  register: log_state
+    - name: Create log directory in the httpd container
+      command: "oc exec $(oc get pod -l app=httpd-server -o jsonpath='{.items[0].metadata.name}' -n httpd-server) -- mkdir -p {{ log_file_path }}"
+      register: create_log_dir
+      when: oc_login.rc == 0
 
-- name: Create the log file
-  file:
-    path: "{{ log_file_path }}/{{ log_file_name }}"
-    state: touch
-  when: log_state.stat.exists == false
+    - name: Validate the log file in the httpd container
+      command: "oc exec $(oc get pod -l app=httpd-server -o jsonpath='{.items[0].metadata.name}' -n httpd-server) -- stat {{ log_file_path }}/{{ log_file_name }}"
+      register: log_state
+      ignore_errors: yes
+      when: oc_login.rc == 0
 
-- name: Added log message to file
-  lineinfile:
-    path: "{{ log_file_path }}/{{ log_file_name }}"
-    line: "{{ date }} Ansible Job was triggered by {{ trigger_name }} as {{ hook_type }} in clusters {{ target_clusters }}."
+    - name: Create the log file in the httpd container
+      command: "oc exec $(oc get pod -l app=httpd-server -o jsonpath='{.items[0].metadata.name}' -n httpd-server) -- touch {{ log_file_path }}/{{ log_file_name }}"
+      when: log_state.rc != 0 and oc_login.rc == 0
+
+    - name: Add log message to file in the httpd container
+      command: "oc exec $(oc get pod -l app=httpd-server -o jsonpath='{.items[0].metadata.name}' -n httpd-server) -- sh -c 'echo \"{{ date }} Ansible Job was triggered by {{ trigger_name }} as {{ hook_type }} in clusters {{ target_clusters }}.\" >> {{ log_file_path }}/{{ log_file_name }}'"
+      when: oc_login.rc == 0
