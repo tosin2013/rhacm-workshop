@@ -1,24 +1,45 @@
 ---
-- name: Validate connection to oc cluster
-  command: oc whoami
-  register: oc_login
+- name: Validate connection to OpenShift cluster
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: httpd-server
+    label_selectors:
+      - app=httpd-server
+  register: pod_info
   ignore_errors: true
+
+- name: Set fact for pod name
+  set_fact:
+    pod_name: "{{ pod_info.resources[0].metadata.name }}"
+  when: pod_info.resources | length > 0
 
 - name: Create log directory in the httpd container
-  command: "oc exec $(oc get pod -l app=httpd-server -o jsonpath='{.items[0].metadata.name}' -n httpd-server) -- mkdir -p {{ log_file_path }}"
-  register: create_log_dir
-  when: oc_login.rc == 0
+  kubernetes.core.k8s_exec:
+    namespace: httpd-server
+    pod: "{{ pod_name }}"
+    command: "mkdir -p {{ log_file_path }}"
+  when: pod_info.resources | length > 0
 
 - name: Validate the log file in the httpd container
-  command: "oc exec $(oc get pod -l app=httpd-server -o jsonpath='{.items[0].metadata.name}' -n httpd-server) -- stat {{ log_file_path }}/{{ log_file_name }}"
+  kubernetes.core.k8s_exec:
+    namespace: httpd-server
+    pod: "{{ pod_name }}"
+    command: "stat {{ log_file_path }}/{{ log_file_name }}"
   register: log_state
   ignore_errors: true
-  when: oc_login.rc == 0
+  when: pod_info.resources | length > 0
 
 - name: Create the log file in the httpd container
-  command: "oc exec $(oc get pod -l app=httpd-server -o jsonpath='{.items[0].metadata.name}' -n httpd-server) -- touch {{ log_file_path }}/{{ log_file_name }}"
-  when: log_state.rc != 0 and oc_login.rc == 0
+  kubernetes.core.k8s_exec:
+    namespace: httpd-server
+    pod: "{{ pod_name }}"
+    command: "touch {{ log_file_path }}/{{ log_file_name }}"
+  when: log_state.rc != 0 and pod_info.resources | length > 0
 
 - name: Add log message to file in the httpd container
-  command: "oc exec $(oc get pod -l app=httpd-server -o jsonpath='{.items[0].metadata.name}' -n httpd-server) -- sh -c 'echo \"{{ date }} Ansible Job was triggered by {{ trigger_name }} as {{ hook_type }} in clusters {{ target_clusters }}.\" >> {{ log_file_path }}/{{ log_file_name }}'"
-  when: oc_login.rc == 0
+  kubernetes.core.k8s_exec:
+    namespace: httpd-server
+    pod: "{{ pod_name }}"
+    command: "sh -c 'echo \"{{ date }} Ansible Job was triggered by {{ trigger_name }} as {{ hook_type }} in clusters {{ target_clusters }}.\" >> {{ log_file_path }}/{{ log_file_name }}'"
+  when: pod_info.resources | length > 0
