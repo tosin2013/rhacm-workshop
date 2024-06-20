@@ -19,7 +19,7 @@ spec:
       status: "True"
   clusterSelector:
     matchLabels:
-      environment: production
+      environment: dev
 ---
 apiVersion: apps.open-cluster-management.io/v1
 kind: Subscription
