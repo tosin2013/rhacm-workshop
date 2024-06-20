@@ -14,6 +14,14 @@ This section seeks to help an instructor setup an Ansible Automation Platform en
 6.  Create Ansible Automation Platform job template, name it Logger, make sure to allow `prompt vars` and `promt inventories` by ticking the boxes next to the instances. Associate the job template with the `07.Ansible-Tower-Integration/ansible-playbooks/logger-playbook.yml` playbook. Associate the job template with the created inventory and credentials.
 7.  Provide the participants with the token you created in `step 2` alongside the web URL for the Ansible Automation Platform web server. Also, provide participants with a user / password to login into the web portal in order to troubleshoot the exercise.
 
+![20240620120840](https://i.imgur.com/EhAfy7w.png)
+
+![20240620120801](https://i.imgur.com/t0BmZ0k.png)
+
+![20240620120908](https://i.imgur.com/R2GoWVW.png)
+
+![20240620121020](https://i.imgur.com/2XJj1DG.png)
+
 ## Preperations for exercise 2 (Integration with Governance Policies) -
 1. Create a job template named K8S-Namespace, associate it with the project, secret and inventory created in the previous exercise. Make sure to associate the job template with the `07.Ansible-Tower-Integration/ansible-playbooks/namespace-playbook.yml` playbook.
 2. Provide the participants with the token you created in `step 2` in the previous exercise alongside the web URL for the Ansible Automation Platform web server. Also, provide participants with a user / password to login into the web portal in order to troubleshoot the exercise.

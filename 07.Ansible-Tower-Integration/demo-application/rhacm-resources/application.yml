@@ -36,7 +36,7 @@ spec:
   placement:
     placementRef:
       kind: PlacementRule
-      name: prod-clusters
+      name: local-cluster
 ---
 apiVersion: app.k8s.io/v1beta1
 kind: Application
