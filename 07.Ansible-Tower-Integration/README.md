@@ -15,14 +15,14 @@ In this section you will create the basic integration between RHACM and Ansible 
 Installing the operator can be done by running the next commands on the hub cluster -
 
 ```
-<hub> $ oc create namespace ansible-automation-platform
+<hub> $ oc create namespace aap
 
 <hub> $ cat >> ansible-operatorgroup.yaml << EOF
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
 metadata:
   name: ansible-automation-platform-operator
-  namespace: ansible-automation-platform
+  namespace: aap
 EOF
 
 <hub> $ oc apply -f ansible-operatorgroup.yaml
@@ -32,7 +32,7 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
   name: ansible-automation-operator
-  namespace: ansible-automation-platform
+  namespace: aap
 spec:
   channel: stable-2.4-cluster-scoped
   installPlanApproval: Automatic
@@ -51,10 +51,11 @@ apiVersion: automationcontroller.ansible.com/v1beta1
 kind: AutomationController
 metadata:
   name: automation-controller
-  namespace: ansible-automation-platform
+  namespace: aap
 spec:
   postgres_keepalives_count: 5
   postgres_keepalives_idle: 5
+  metrics_utility_cronjob_report_schedule: '@monthly'
   create_preload_data: true
   route_tls_termination_mechanism: Edge
   garbage_collect_secrets: false
@@ -66,14 +67,17 @@ spec:
   auto_upgrade: true
   task_privileged: false
   postgres_keepalives: true
+  metrics_utility_enabled: false
   postgres_keepalives_interval: 5
   ipv6_disabled: false
   projects_storage_access_mode: ReadWriteMany
+  metrics_utility_pvc_claim_size: 5Gi
   set_self_labels: true
   projects_persistence: false
   replicas: 1
   admin_user: admin
   loadbalancer_protocol: http
+  metrics_utility_cronjob_gather_schedule: '@hourly'
 EOF
 
 <hub> $ oc  apply -f automation-controller.yaml
