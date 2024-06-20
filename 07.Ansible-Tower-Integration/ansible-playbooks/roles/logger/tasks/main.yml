@@ -14,6 +14,15 @@
     pod_name: "{{ pod_info.resources[0].metadata.name }}"
   when: pod_info.resources | length > 0
 
+- name: Validate the log file in the httpd container
+  kubernetes.core.k8s_exec:
+    namespace: httpd-server
+    pod: "{{ pod_name }}"
+    command: "stat {{ log_file_name }}"
+  register: log_state
+  ignore_errors: true
+  when: pod_info.resources | length > 0
+
 - name: Create the log file in the httpd container
   kubernetes.core.k8s_exec:
     namespace: httpd-server
