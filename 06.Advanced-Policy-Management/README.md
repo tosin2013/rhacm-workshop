@@ -7,6 +7,8 @@ In this exercise you will go through the Compliance features that come with Open
 In this section you create and manage Gatekeeper policies. The policies are based on the REGO policy language.
 
 Apply the next policy to the hub cluster. The policy installs the Gatekeeper operator on the managed cluster.
+Note: This policy is applicable for clusters with environment=dev label.
+
 
 ```
 <hub> $ oc new-project rhacm-policies

@@ -4,8 +4,8 @@ In this exercise you will deploy a demo application onto the cluster using Red H
 
 In this exercise you will try to deploy an application that manages two versions -
 
-* Development - [https://github.com/michaelkotelnikov/rhacm-workshop/tree/dev/04.Application-Lifecycle/exercise-application/application-resources](https://github.com/michaelkotelnikov/rhacm-workshop/tree/dev/04.Application-Lifecycle/exercise-application/application-resources)
-* Production - [https://github.com/michaelkotelnikov/rhacm-workshop/tree/master/04.Application-Lifecycle/exercise-application/application-resources](https://github.com/michaelkotelnikov/rhacm-workshop/tree/master/04.Application-Lifecycle/exercise-application/application-resources)
+* Development - [https://github.com/tosin2013/rhacm-workshop/tree/dev/04.Application-Lifecycle/exercise-application/application-resources](https://github.com/tosin2013/rhacm-workshop/tree/dev/04.Application-Lifecycle/exercise-application/application-resources)
+* Production - [https://github.com/tosin2013/rhacm-workshop/tree/master/04.Application-Lifecycle/exercise-application/application-resources](https://github.com/tosin2013/rhacm-workshop/tree/master/04.Application-Lifecycle/exercise-application/application-resources)
 
 Both versions of the application are stored in the same Git repository, while the **production** version is stored in the **master** branch, and the **development** version is stored in the **dev** branch.
 
@@ -30,7 +30,7 @@ EOF
 ```
 
 
-* **Channel** - Create a channel that refers to the GitHub repository in which the application’s resources are placed. The GitHub repository is at - [https://github.com/michaelkotelnikov/rhacm-workshop.git](https://github.com/michaelkotelnikov/rhacm-workshop.git)
+* **Channel** - Create a channel that refers to the GitHub repository in which the application’s resources are placed. The GitHub repository is at - [https://github.com/tosin2013/rhacm-workshop.git](https://github.com/tosin2013/rhacm-workshop.git)
 
 ```
 <hub> $ cat >> channel.yaml << EOF
@@ -206,10 +206,10 @@ Note that the application is now deployed at its “production” version on **l
 
 Click on the application’s route resource, and navigate to **https://&lt;route-url>/application.html**. The application now serves a different webpage, indicating that the application is in a production state.
 
-**NOTE:** All of the resources you have configured in this exercise are present in the [git repository](https://github.com/michaelkotelnikov/rhacm-workshop.git). The resources can be created by running the next command -
+**NOTE:** All of the resources you have configured in this exercise are present in the [git repository](https://github.com/tosin2013/rhacm-workshop.git). The resources can be created by running the next command -
 
 ```
-<hub> $ oc apply -f https://raw.githubusercontent.com/michaelkotelnikov/rhacm-workshop/master/04.Application-Lifecycle/exercise-application/rhacm-resources/application.yaml
+<hub> $ oc apply -f https://raw.githubusercontent.com/tosin2013/rhacm-workshop/master/04.Application-Lifecycle/exercise-application/rhacm-resources/application.yaml
 ```
 
 # ArgoCD Integration
@@ -224,64 +224,13 @@ Before you begin, make sure to delete all of the resources you created in the pr
 
 ## ArgoCD Installation
 
-As described in the workshop. An ArgoCD / OpenShift GitOps instance has to be installed in order to begin the integration with RHACM. Install the `openshift-gitops` operator by applying the next resource to the hub cluster -
+As described in the workshop. An ArgoCD / OpenShift GitOps instance has to be installed in order to begin the integration with RHACM. Install the `openshift-gitops` operator using below script.
 
+## Using Script 
 ```
-<hub> $ cat >> openshift-gitops-operator.yaml << EOF
----
-apiVersion: operators.coreos.com/v1alpha1
-kind: Subscription
-metadata:
-  name: openshift-gitops-operator
-  namespace: openshift-operators
-spec:
-  channel: stable
-  installPlanApproval: Automatic
-  name: openshift-gitops-operator
-  source: redhat-operators
-  sourceNamespace: openshift-marketplace
-EOF
-
-<hub> $ oc apply -f openshift-gitops-operator.yaml
-```
-
-After installing the operator on the hub cluster. Create the ArgoCD CustomResource. The ArgoCD CR spins an instance of ArgoCD using the `openshift-gitops` operator.
-
-```
-<hub> $ cat >> argocd.yaml << EOF
----
-apiVersion: argoproj.io/v1alpha1
-kind: ArgoCD
-metadata:
-  finalizers:
-    - argoproj.io/finalizer
-  name: openshift-gitops
-  namespace: openshift-gitops
-spec:
-  server:
-    autoscale:
-      enabled: false
-    grpc:
-      ingress:
-        enabled: false
-    ingress:
-      enabled: false
-    resources:
-      limits:
-        cpu: 500m
-        memory: 256Mi
-      requests:
-        cpu: 125m
-        memory: 128Mi
-    route:
-      enabled: true
-    service:
-      type: ''
-  grafana:
-    enabled: false
-EOF
-
-<hub> $ oc apply -f argocd.yaml
+git clone https://github.com/tosin2013/sno-quickstarts.git
+cd sno-quickstarts/gitops
+./deploy.sh
 ```
 
 Make sure that the ArgoCD instance is running by navigating to ArgoCD's web UI. The URL can be found be running the next command -
@@ -296,13 +245,6 @@ openshift-gitops-server   openshift-gitops-server-openshift-gitops.<FQDN>   open
 Log into the ArgoCD instance by pressing on `Log In via OpenShift`.
 
 Now that you have a running instance of ArgoCD, let's integrate it with RHACM!
-
-## Using Script 
-```
-git clone https://github.com/tosin2013/sno-quickstarts.git
-cd sno-quickstarts/gitops
-./deploy.sh
-```
 
 ## Preparing RHACM for ArgoCD Integration
 
@@ -406,24 +348,17 @@ To create the ApplicationSet resource run the next commands -
 
 ```
 <hub> $ curl -OL https://raw.githubusercontent.com/tosin2013/rhacm-workshop/master/04.Application-Lifecycle/demo-argocd/argocd-resources/appproject.yaml
-<hub> $ vim appproject.yaml # chagne line 12 to cluster name 
-<hub> $ oc apply -f https://raw.githubusercontent.com/tosin2013/rhacm-workshop/master/04.Application-Lifecycle/demo-argocd/argocd-resources/appproject.yaml
+<hub> $ vim appproject.yaml # change line 12 to cluster name 
+
 <hub> $ oc apply -f appproject.yaml
 
-<hub> $ oc apply -f https://raw.githubusercontent.com/tosin2013/rhacm-workshop/master/04.Application-Lifecycle/demo-argocd/argocd-resources/applicationset.yaml
+<hub> $ oc apply -f https://raw.githubusercontent.com/tosin2013/rhacm-workshop/master/04.Application-Lifecycle/exercise-argocd/argocd-resources/applicationset.yaml
 ```
 
 Note that two application instances have been created in the ArgoCD UI -
 
 ![argocd-applications](images/argocd-applications.png)
 
-After viewing the applications and their resources in the ArgoCD dashboard, log into RHACM's web console, and navigate to **Applications**. Note that RHACM identifies the deployed ApplicationSet and provides an entry for both applications -
-
-![argocd-rhacm-applications](images/argocd-rhacm-applications.png)
-
-The deployed application resources can be seen in the ApplicationSet instance in RHACM -
-
-![rhacm-argocd-app-details](images/rhacm-argocd-app-details.png)
 
 Make sure that the application is available by navigating to its Route resource.
 
