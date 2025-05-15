@@ -235,7 +235,7 @@ metadata:
   name: openshift-gitops-operator
   namespace: openshift-operators
 spec:
-  channel: stable
+  channel: channel
   installPlanApproval: Automatic
   name: openshift-gitops-operator
   source: redhat-operators
