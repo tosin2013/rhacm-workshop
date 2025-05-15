@@ -11,7 +11,7 @@ metadata:
   namespace: webserver-acm
 spec:
   type: Git
-  pathname: https://github.com/michaelkotelnikov/rhacm-workshop.git 
+  pathname: https://github.com/tosin2013/rhacm-workshop.git 
 ---
 apiVersion: apps.open-cluster-management.io/v1
 kind: PlacementRule
