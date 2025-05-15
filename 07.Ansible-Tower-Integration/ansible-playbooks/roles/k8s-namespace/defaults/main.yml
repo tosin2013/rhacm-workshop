@@ -1,2 +1,0 @@
-k8s_namespace_state: "absent"
-k8s_namespace_name: "forbidden-namespace"

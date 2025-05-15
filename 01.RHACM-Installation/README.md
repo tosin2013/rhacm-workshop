@@ -7,6 +7,11 @@ To install the up-to-date instance of Advanced Cluster Management, follow the st
 
 ## Deploy OpenShift Cluster on AWS
 This is an script used to deploy OpenShift on AWS
+Pre-requisite: Install wget package as needed based on your OS.
+```
+sudo yum install wget
+```
+
 ```
 curl -OL https://gist.githubusercontent.com/tosin2013/76e47de3f32de4486ab4699c21b2188e/raw/959ae5dd2117edf124e4531cfae5216c722a3358/openshift-ai-workload.sh
 # optional change  .compute[0].replicas to 3
@@ -19,12 +24,17 @@ export aws_region="YOUR_AWS_REGION"
 ```
 
 ## Recommend: Configure SSL Certs
+Pre-requisite: Install podman/docker
+``` sudo yum install podman
+```
+
 ```
 export KUBECONFIG=/home/lab-user/cluster/auth/kubeconfig
 curl -OL https://gist.githubusercontent.com/tosin2013/866522a1420ac22f477d2253121b4416/raw/35d6fa88675d63b6ecf58a827df32356ccf3ddde/configure-keys-on-openshift.sh
 chmod +x configure-keys-on-openshift.sh
 ./configure-keys-on-openshift.sh <AWS_ACCESS_KEY> <AWS_SECRET_ACCESS_KEY> podman 
 ```
+TIP: If facing issues with directory creation for letsencrypt, switch DIR (/home/lab-user/letsencrypt) in the script, instead of placing it /etc/letsencrypt/
 
 # Deploy RHACM using kustommize
 ```

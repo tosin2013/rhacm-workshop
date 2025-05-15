@@ -5,7 +5,7 @@ In this exercise you will go through the Compliance features that come with Red 
 **NOTE!** The exercise depends on the ACM application deployed in the previous exercise (NOT the application deployed using ArgoCD). If the application is not available in your environment, run the next command to deploy it -
 
 ```
-<hub> $ oc apply -f https://raw.githubusercontent.com/michaelkotelnikov/rhacm-workshop/master/04.Application-Lifecycle/exercise-application/rhacm-resources/application.yaml
+<hub> $ oc apply -f https://raw.githubusercontent.com/tosin2013/rhacm-workshop/master/04.Application-Lifecycle/exercise-application/rhacm-resources/application.yaml
 ```
 
 **NOTE!** Make sure that the `environment=production` label is associated with the managed cluster!
@@ -391,9 +391,9 @@ Before you start this section of the exercise, make sure you delete the namespac
 <hub> $ oc delete project rhacm-policies
 ```
 
-1. For this exercise, create a fork of the next GitHub repository - [https://github.com/michaelkotelnikov/rhacm-workshop](https://github.com/michaelkotelnikov/rhacm-workshop)
+1. For this exercise, create a fork of the next GitHub repository - [https://github.com/tosin2013/rhacm-workshop](https://github.com/tosin2013/rhacm-workshop)
 
-    As a result, you will have your own version of the repository - [https://github.com/&lt;your-username>/rhacm-workshop](https://github.com/michaelkotelnikov/rhacm-workshop)
+    As a result, you will have your own version of the repository - [https://github.com/&lt;your-username>/rhacm-workshop](https://github.com/tosin2013/rhacm-workshop)
 
 2. Afterwards, create a namespace on which you will deploy the RHACM resources (Use the namespace.yaml file in the forked repository) -
 
@@ -410,6 +410,11 @@ Before you start this section of the exercise, make sure you delete the namespac
 ```
 
 4.a. If you are using the kubeadmin user, create an identity provider by running the next commands (It is not possible to create policies via GitOps using the kubeadmin user). The identity provider will create the `workshop-admin` user -
+
+TIP: Install httpd tools if missing.
+```
+sudo dnf install httpd-tools -y
+```
 
 ```
 <hub> $ htpasswd -c -B -b htpasswd workshop-admin redhat
@@ -466,7 +471,7 @@ spec:
 ![policies-overview](images/policies-overview.png)
 
 
-8. Edit the LimitRange policy in [https://github.com/&lt;your-username>/rhacm-workshop/blob/master/05.Governance-Risk-Compliance/exercise/exercise-policies/limitrange-policy.yaml](https://github.com/michaelkotelnikov/rhacm-workshop/blob/master/05.Governance-Risk-Compliance/exercise/exercise-policies/limitrange-policy.yaml). Change the default container limit from 512Mi to 1024Mi.
+8. Edit the LimitRange policy in [https://github.com/&lt;your-username>/rhacm-workshop/blob/master/05.Governance-Risk-Compliance/exercise/exercise-policies/limitrange-policy.yaml](https://github.com/tosin2013/rhacm-workshop/blob/master/05.Governance-Risk-Compliance/exercise/exercise-policies/limitrange-policy.yaml). Change the default container limit from 512Mi to 1024Mi.
 
 9. Make sure that you commit, and push the change to your fork.
 
@@ -509,7 +514,7 @@ data:
 Deploy the templated policy by running the next command on the hub cluster -
 
 ```
-<hub> $ oc apply -f https://raw.githubusercontent.com/michaelkotelnikov/rhacm-workshop/master/05.Governance-Risk-Compliance/exercise/exercise-templates/metrics-configmap.yaml
+<hub> $ oc apply -f https://raw.githubusercontent.com/tosin2013/rhacm-workshop/master/05.Governance-Risk-Compliance/exercise/exercise-templates/metrics-configmap.yaml
 ```
 
 The policy will appear at the Governance dashboard at a non-compliant state. The policy depends on the `mariadb` Secret resource and the `mariadb` Service resource. Since you have not created them yet, the policy is not able to create the desired ConfigMap resource.
@@ -517,7 +522,7 @@ The policy will appear at the Governance dashboard at a non-compliant state. The
 Deploy the mariadb-metrics application in order to create the mariadb and exporter instances. Deploy the application by running the next command -
 
 ```
-<hub> $ oc apply -f https://raw.githubusercontent.com/michaelkotelnikov/rhacm-workshop/master/05.Governance-Risk-Compliance/exercise/exercise-application/rhacm-resources/application.yaml
+<hub> $ oc apply -f https://raw.githubusercontent.com/tosin2013/rhacm-workshop/master/05.Governance-Risk-Compliance/exercise/exercise-application/rhacm-resources/application.yaml
 ```
 
 Wait until the application is available. After the application is available, make sure that the policy you have deployed is compliant in the Governance dashboard. Make sure that the template worked by running the next command on the managed cluster.
