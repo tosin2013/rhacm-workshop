@@ -235,9 +235,55 @@ ip-10-0-186-66.us-east-2.compute.internal    1786m        23%    8773Mi         
 ip-10-0-202-11.us-east-2.compute.internal    1754m        23%    8781Mi          28%  
 ----
 
-=== 3.4.3 - Export the dashboard to the main Grafana instance
+=== 3.4.3 - Bonus: GPU Monitoring Dashboard
 
-Until now, you have worked on the "Development" Grafana instance. It's time to export the dashboard you've created to the main "Production" Grafana instance. Before you begin the export process, make sure to save your dashboard by pressing `CTRL + S`. Provide the dashboard with a simple, declarative name.
+In this section you will import a pre-built NVIDIA GPU dashboard that visualizes DCGM (Data Center GPU Manager) metrics from managed clusters with GPUs. This ties back to the `gpu-cluster` provisioned in Exercise 1.
+
+==== Enable GPU metric collection
+
+By default, ACM Observability only collects a curated set of metrics. DCGM metrics must be added to a custom allowlist so the metrics-collector on the gpu-cluster ships them to the hub:
+
+[source,bash]
+----
+<hub> $ oc apply -f 03.Observability/exercise/gpu-metrics-allowlist.yaml
+----
+
+Wait 2-3 minutes for the metrics-collector on the gpu-cluster to pick up the new allowlist and start forwarding DCGM metrics.
+
+==== Import the GPU dashboard into Grafana Dev
+
+A dashboard JSON file adapted from the https://github.com/NVIDIA/dcgm-exporter/blob/main/grafana/dcgm-exporter-dashboard.json[official NVIDIA DCGM Exporter dashboard] is provided at `03.Observability/exercise/nvidia-dcgm-dashboard.json`. It has been modified to use the `Observatorium` datasource and a `cluster` template variable for multi-cluster filtering.
+
+Import it into the Grafana Dev instance:
+
+. Open the Grafana Dev URL in your browser.
+. Click the *+* icon on the left sidebar and select *Import*.
+. Click *Upload JSON file* and select `03.Observability/exercise/nvidia-dcgm-dashboard.json`.
+. Click *Import*.
+
+The dashboard includes 8 panels: GPU Temperature, Avg Temp gauge, Power Usage, Power Total gauge, GPU Utilization, Memory Utilization, Framebuffer Memory Used, and SM Clocks. Use the *Cluster* dropdown at the top to filter by your gpu-cluster.
+
+==== Export the GPU dashboard using the script
+
+Now use the export script to generate a ConfigMap YAML from the imported dashboard:
+
+[source,bash]
+----
+<hub> $ bash generate-dashboard-configmap-yaml.sh "NVIDIA GPU - DCGM Exporter"
+----
+
+This generates a file named `nvidia-gpu---dcgm-exporter.yaml` in the current directory. Apply it to the hub cluster:
+
+[source,bash]
+----
+<hub> $ oc apply -f nvidia-gpu---dcgm-exporter.yaml -n open-cluster-management-observability
+----
+
+Verify the dashboard now appears in the *Production* Grafana instance under the *Custom* folder.
+
+=== 3.4.4 - Export your own dashboard to the main Grafana instance
+
+Until now, you have worked on the "Development" Grafana instance. It's time to export the dashboard you created in sections 3.4.1 and 3.4.2 to the main "Production" Grafana instance. Before you begin the export process, make sure to save your dashboard by pressing `CTRL + S`. Provide the dashboard with a simple, declarative name.
 
 From the `multicluster-observability-operator/tools` directory, run the export script with your dashboard name:
 
