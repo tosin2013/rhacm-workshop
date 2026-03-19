@@ -1,0 +1,78 @@
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: policy-kyverno-disallow-privileged
+  namespace: rhacm-policies
+  annotations:
+    policy.open-cluster-management.io/standards: NIST SP 800-53
+    policy.open-cluster-management.io/categories: CM Configuration Management
+    policy.open-cluster-management.io/controls: CM-2 Baseline Configuration
+spec:
+  remediationAction: enforce
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: kyverno-disallow-privileged-containers
+        spec:
+          remediationAction: enforce
+          severity: high
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: kyverno.io/v1
+                kind: ClusterPolicy
+                metadata:
+                  name: disallow-privileged-containers
+                  annotations:
+                    policies.kyverno.io/title: Disallow Privileged Containers
+                    policies.kyverno.io/category: Pod Security Standards (Baseline)
+                    policies.kyverno.io/severity: high
+                    policies.kyverno.io/description: >-
+                      Privileged containers are those that run with the
+                      equivalent of root-level access on the host. This policy
+                      blocks Pods that set privileged: true in their
+                      securityContext.
+                spec:
+                  validationFailureAction: Enforce
+                  background: true
+                  rules:
+                    - name: deny-privileged
+                      match:
+                        any:
+                          - resources:
+                              kinds:
+                                - Pod
+                      exclude:
+                        any:
+                          - resources:
+                              namespaces:
+                                - kube-system
+                                - kube-public
+                                - kube-node-lease
+                                - openshift-*
+                                - kyverno
+                      validate:
+                        message: "Privileged containers are not allowed."
+                        pattern:
+                          spec:
+                            containers:
+                              - =(securityContext):
+                                  =(privileged): false
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: binding-policy-kyverno-disallow-privileged
+  namespace: rhacm-policies
+placementRef:
+  name: placement-policy-kyverno
+  kind: Placement
+  apiGroup: cluster.open-cluster-management.io
+subjects:
+  - name: policy-kyverno-disallow-privileged
+    kind: Policy
+    apiGroup: policy.open-cluster-management.io

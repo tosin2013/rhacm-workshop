@@ -1,0 +1,76 @@
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: policy-kyverno-require-labels
+  namespace: rhacm-policies
+  annotations:
+    policy.open-cluster-management.io/standards: NIST SP 800-53
+    policy.open-cluster-management.io/categories: CM Configuration Management
+    policy.open-cluster-management.io/controls: CM-2 Baseline Configuration
+spec:
+  remediationAction: enforce
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: kyverno-require-labels
+        spec:
+          remediationAction: enforce
+          severity: medium
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: kyverno.io/v1
+                kind: ClusterPolicy
+                metadata:
+                  name: require-labels
+                  annotations:
+                    policies.kyverno.io/title: Require Labels
+                    policies.kyverno.io/category: Best Practices
+                    policies.kyverno.io/severity: medium
+                    policies.kyverno.io/description: >-
+                      Require the label 'app.kubernetes.io/name' on all Pods.
+                      This ensures workloads are properly labeled for identification
+                      and management.
+                spec:
+                  validationFailureAction: Enforce
+                  background: true
+                  rules:
+                    - name: check-for-labels
+                      match:
+                        any:
+                          - resources:
+                              kinds:
+                                - Pod
+                      exclude:
+                        any:
+                          - resources:
+                              namespaces:
+                                - kube-system
+                                - kube-public
+                                - kube-node-lease
+                                - openshift-*
+                                - kyverno
+                      validate:
+                        message: "The label 'app.kubernetes.io/name' is required."
+                        pattern:
+                          metadata:
+                            labels:
+                              app.kubernetes.io/name: "?*"
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: binding-policy-kyverno-require-labels
+  namespace: rhacm-policies
+placementRef:
+  name: placement-policy-kyverno
+  kind: Placement
+  apiGroup: cluster.open-cluster-management.io
+subjects:
+  - name: policy-kyverno-require-labels
+    kind: Policy
+    apiGroup: policy.open-cluster-management.io

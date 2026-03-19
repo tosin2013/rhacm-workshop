@@ -306,6 +306,111 @@ EOF
 <managed cluster> $ oc apply -f gatekeeper-disallowed-namespace.yaml
 ```
 
+## Kyverno
+
+In this section you will deploy and manage [Kyverno](https://kyverno.io/) policies. Unlike Gatekeeper which uses the Rego policy language, Kyverno policies are written in standard Kubernetes YAML — making them easier to author and review without learning a new language.
+
+### Install Kyverno via ACM Policy
+
+Apply the next policy to the hub cluster. The policy installs the Kyverno operator on managed clusters with `environment=dev`:
+
+```
+<hub> $ oc apply -f 06.Advanced-Policy-Management/demo-kyverno/policy-kyverno-install.yaml
+```
+
+Wait until the policy shows as **compliant** in the RHACM Governance dashboard. Verify Kyverno is running on the managed cluster:
+
+```
+<managed cluster> $ oc get pods -n kyverno
+NAME                                             READY   STATUS    RESTARTS   AGE
+kyverno-admission-controller-...                  1/1     Running   0          2m
+kyverno-background-controller-...                 1/1     Running   0          2m
+kyverno-cleanup-controller-...                    1/1     Running   0          2m
+kyverno-reports-controller-...                    1/1     Running   0          2m
+```
+
+### Policy #1 - Require Labels on Pods
+
+This Kyverno policy requires all Pods to carry the `app.kubernetes.io/name` label. Notice how the policy is pure YAML — no Rego required:
+
+```
+<hub> $ oc apply -f 06.Advanced-Policy-Management/demo-kyverno/policy-kyverno-require-labels.yaml
+```
+
+Wait until the policy is compliant, then test on the managed cluster:
+
+```
+<managed cluster> $ oc create namespace kyverno-test
+
+# This should be DENIED — no required label
+<managed cluster> $ oc run nginx --image=registry.access.redhat.com/ubi9/nginx-124:latest -n kyverno-test
+
+# This should SUCCEED — has the required label
+<managed cluster> $ oc run nginx --image=registry.access.redhat.com/ubi9/nginx-124:latest -n kyverno-test \
+    --labels="app.kubernetes.io/name=nginx"
+```
+
+### Policy #2 - Disallow Privileged Containers
+
+This policy blocks any Pod that sets `privileged: true` in its security context:
+
+```
+<hub> $ oc apply -f 06.Advanced-Policy-Management/demo-kyverno/policy-kyverno-disallow-privileged.yaml
+```
+
+Test on the managed cluster:
+
+```
+# This should be DENIED — privileged container
+<managed cluster> $ cat << EOF | oc apply -n kyverno-test -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: privileged-pod
+  labels:
+    app.kubernetes.io/name: test
+spec:
+  containers:
+  - name: nginx
+    image: registry.access.redhat.com/ubi9/nginx-124:latest
+    securityContext:
+      privileged: true
+EOF
+
+# This should SUCCEED — no privileged flag
+<managed cluster> $ cat << EOF | oc apply -n kyverno-test -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: safe-pod
+  labels:
+    app.kubernetes.io/name: test
+spec:
+  containers:
+  - name: nginx
+    image: registry.access.redhat.com/ubi9/nginx-124:latest
+EOF
+```
+
+Clean up the test namespace:
+
+```
+<managed cluster> $ oc delete namespace kyverno-test
+```
+
+### Kyverno vs Gatekeeper — Key Differences
+
+| Feature | Gatekeeper (OPA) | Kyverno |
+|---|---|---|
+| Policy language | Rego | Kubernetes YAML |
+| Learning curve | Steeper (new language) | Lower (familiar YAML) |
+| Mutation support | Via `assign`/`modify` | Native `mutate` rules |
+| Generation | Not supported | Can generate resources (ConfigMaps, NetworkPolicies) |
+| Image verification | Via external data | Built-in `verifyImages` rules |
+| OpenShift integration | Red Hat supported operator | Community operator |
+
+Both engines integrate with ACM through `ConfigurationPolicy` wrapping their respective CRDs. Choose based on your team's preferences and requirements.
+
 ## Compliance Operator Integration
 
 In this section you will perform an integration between Red Hat Advanced Cluster Management and the OpenSCAP Compliance Operator. You will create an RHACM policy that deploys the Compliance Operator. Afterwards, you will create an RHACM policy that initiates a compliance scan and monitors the results.
