@@ -40,27 +40,62 @@ In this section you will provision two additional managed clusters using ACM's H
 - **standard-cluster** — SNO on `m6i.2xlarge` for application deployment and policy exercises
 - **gpu-cluster** — SNO on `g6.4xlarge` with an NVIDIA L4 GPU for AI workload placement
 
-### Step 1 - Configure AWS Credentials
+### Step 1 - Create AWS Credential in ACM Console
 
-Edit the credentials secret with your AWS access keys and pull secret:
+Create the AWS credential through the ACM Console. This stores your AWS keys, pull secret, SSH keys, and base domain in a single managed credential.
 
-```
-<hub> $ vim 01.RHACM-Installation/cluster-provisioning/aws-credentials-secret.yaml
-```
+1. Open the ACM Console — navigate to **Infrastructure → Credentials → Add credential**
+2. Select **Amazon Web Services** as the provider type
+3. Set:
+   - **Credential name**: `aws-credentials`
+   - **Namespace**: `aws-credentials` (create new)
+4. Enter your **AWS Access Key ID** and **Secret Access Key**
+5. Enter your **Base DNS domain** (your Route53 base domain, e.g., `sandbox1234.opentlc.com`)
+6. Paste your **Red Hat pull secret** (from https://console.redhat.com/openshift/install/pull-secret)
+7. Paste your **SSH public** and **private keys**
+8. Click **Add**
 
-Replace the placeholder values, then apply:
+Verify the credential was created:
 ```
-<hub> $ oc apply -f 01.RHACM-Installation/cluster-provisioning/aws-credentials-secret.yaml
+<hub> $ oc get secret aws-credentials -n aws-credentials -o jsonpath='{.metadata.labels.cluster\.open-cluster-management\.io/type}'
+aws
 ```
 
 ### Step 2 - Update Cluster Configurations
 
-Edit both `standard-cluster.yaml` and `gpu-cluster.yaml` in `01.RHACM-Installation/cluster-provisioning/` to set:
-- `<YOUR_BASE_DOMAIN>` — your Route53 base domain (e.g., `sandbox1234.opentlc.com`)
-- `<YOUR_SSH_PUBLIC_KEY>` — your SSH public key
+Extract the base domain and SSH public key from your credential:
+```
+<hub> $ export BASE_DOMAIN=$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.baseDomain}' | base64 -d)
+<hub> $ export SSH_PUB_KEY=$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.ssh-publickey}' | base64 -d)
+<hub> $ echo "Base domain: $BASE_DOMAIN"
+```
 
-### Step 3 - Provision the Clusters
+Replace the placeholders in both cluster YAML files:
+```
+<hub> $ cd 01.RHACM-Installation/cluster-provisioning/
+<hub> $ sed -i "s|<YOUR_BASE_DOMAIN>|${BASE_DOMAIN}|g" standard-cluster.yaml gpu-cluster.yaml
+<hub> $ sed -i "s|<YOUR_SSH_PUBLIC_KEY>|${SSH_PUB_KEY}|g" standard-cluster.yaml gpu-cluster.yaml
+<hub> $ cd -
+```
 
+### Step 3 - Copy Secrets to Cluster Namespaces and Provision
+
+The Hive ClusterDeployment requires AWS credentials and the pull secret in each cluster's namespace. Copy them from the central credential:
+```
+<hub> $ for NS in standard-cluster gpu-cluster; do
+  oc create namespace $NS --dry-run=client -o yaml | oc apply -f -
+  oc create secret generic aws-credentials -n $NS \
+    --from-literal=aws_access_key_id="$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.aws_access_key_id}' | base64 -d)" \
+    --from-literal=aws_secret_access_key="$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.aws_secret_access_key}' | base64 -d)" \
+    --dry-run=client -o yaml | oc apply -f -
+  oc create secret generic pull-secret -n $NS \
+    --from-literal=.dockerconfigjson="$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.pullSecret}' | base64 -d)" \
+    --type=kubernetes.io/dockerconfigjson \
+    --dry-run=client -o yaml | oc apply -f -
+done
+```
+
+Provision the clusters:
 ```
 <hub> $ oc apply -f 01.RHACM-Installation/cluster-provisioning/standard-cluster.yaml
 <hub> $ oc apply -f 01.RHACM-Installation/cluster-provisioning/gpu-cluster.yaml
