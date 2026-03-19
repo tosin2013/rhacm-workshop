@@ -149,11 +149,28 @@ standard-cluster   standard-cluster   aws        us-east-2   false
 
 === Step 4 - Install NVIDIA GPU Operator on GPU Cluster
 
-After the gpu-cluster is ready, apply the GPU Operator policy. This ACM policy automatically installs the NVIDIA GPU Operator on any cluster labeled `gpu=true`:
+After the gpu-cluster is ready, create the `rhacm-policies` namespace and bind it to the `default` ManagedClusterSet so that Placement can select clusters:
+
+[source,bash]
+----
+<hub> $ oc create namespace rhacm-policies --dry-run=client -o yaml | oc apply -f -
+----
+
+Apply the GPU Operator policy. This ACM policy automatically installs *Node Feature Discovery* (NFD) and the *NVIDIA GPU Operator* on any cluster labeled `gpu=true`. NFD is required so the GPU hardware is detected and labeled before the GPU Operator creates its driver daemonsets. The YAML also includes the `ManagedClusterSetBinding`, `Placement`, and `PlacementBinding` resources:
 
 [source,bash]
 ----
 <hub> $ oc apply -f 01.RHACM-Installation/cluster-provisioning/gpu-operator-policy.yaml
+----
+
+Verify the policy is Compliant. The NFD operator and GPU driver installation may take 5-10 minutes:
+
+[source,bash]
+----
+<hub> $ oc get policy -A
+NAMESPACE        NAME                                        REMEDIATION ACTION   COMPLIANCE STATE
+gpu-cluster      rhacm-policies.policy-nvidia-gpu-operator   enforce              Compliant
+rhacm-policies   policy-nvidia-gpu-operator                  enforce              Compliant
 ----
 
 === Step 5 - Verify All Clusters
