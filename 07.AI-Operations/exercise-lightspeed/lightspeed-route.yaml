@@ -1,0 +1,17 @@
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: lightspeed-mcp
+  namespace: openshift-lightspeed
+spec:
+  to:
+    kind: Service
+    name: lightspeed-app-server
+    weight: 100
+  port:
+    targetPort: https
+  tls:
+    termination: reencrypt
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

@@ -1,0 +1,108 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gpu-cluster
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gpu-cluster-install-config
+  namespace: gpu-cluster
+type: Opaque
+stringData:
+  install-config.yaml: |
+    apiVersion: v1
+    metadata:
+      name: gpu-cluster
+    baseDomain: <YOUR_BASE_DOMAIN>
+    controlPlane:
+      architecture: amd64
+      hyperthreading: Enabled
+      name: master
+      replicas: 1
+      platform:
+        aws:
+          type: g6.4xlarge
+    compute:
+    - architecture: amd64
+      hyperthreading: Enabled
+      name: worker
+      replicas: 0
+      platform:
+        aws:
+          type: g6.4xlarge
+    networking:
+      clusterNetwork:
+      - cidr: 10.128.0.0/14
+        hostPrefix: 23
+      machineNetwork:
+      - cidr: 10.0.0.0/16
+      networkType: OVNKubernetes
+      serviceNetwork:
+      - 172.30.0.0/16
+    platform:
+      aws:
+        region: us-east-2
+    pullSecret: ""
+    sshKey: "<YOUR_SSH_PUBLIC_KEY>"
+---
+apiVersion: hive.openshift.io/v1
+kind: ClusterDeployment
+metadata:
+  name: gpu-cluster
+  namespace: gpu-cluster
+  labels:
+    cloud: AWS
+    vendor: OpenShift
+spec:
+  baseDomain: <YOUR_BASE_DOMAIN>
+  clusterName: gpu-cluster
+  installAttemptsLimit: 1
+  installed: false
+  platform:
+    aws:
+      credentialsSecretRef:
+        name: aws-credentials
+      region: us-east-2
+  provisioning:
+    installConfigSecretRef:
+      name: gpu-cluster-install-config
+    imageSetRef:
+      name: img4.20.16-multi-appsub
+  pullSecretRef:
+    name: pull-secret
+---
+apiVersion: cluster.open-cluster-management.io/v1
+kind: ManagedCluster
+metadata:
+  name: gpu-cluster
+  labels:
+    name: gpu-cluster
+    cloud: Amazon
+    vendor: OpenShift
+    environment: ai
+    gpu: "true"
+    accelerator: nvidia-l4
+    gpu-count: "1"
+spec:
+  hubAcceptsClient: true
+---
+apiVersion: agent.open-cluster-management.io/v1
+kind: KlusterletAddonConfig
+metadata:
+  name: gpu-cluster
+  namespace: gpu-cluster
+spec:
+  clusterName: gpu-cluster
+  clusterNamespace: gpu-cluster
+  applicationManager:
+    enabled: true
+  certPolicyController:
+    enabled: true
+  iamPolicyController:
+    enabled: true
+  policyController:
+    enabled: true
+  searchCollector:
+    enabled: true

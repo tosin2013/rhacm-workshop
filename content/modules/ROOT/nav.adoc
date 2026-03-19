@@ -1,0 +1,10 @@
+* xref:index.adoc[Workshop Overview]
+
+.Workshop Modules
+* xref:01-installation.adoc[Module 01: RHACM Installation & Cluster Provisioning]
+* xref:02-cluster-management.adoc[Module 02: Cluster Management]
+* xref:03-observability.adoc[Module 03: Observability]
+* xref:04-application-lifecycle.adoc[Module 04: Application Lifecycle]
+* xref:05-governance.adoc[Module 05: Governance Risk and Compliance]
+* xref:06-advanced-policy.adoc[Module 06: Advanced Policy Management]
+* xref:07-ai-operations.adoc[Module 07: AI-Powered Operations]

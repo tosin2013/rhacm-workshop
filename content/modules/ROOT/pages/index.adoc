@@ -1,0 +1,48 @@
+= Advanced Cluster Management Workshop
+include::partial$_attributes.adoc[]
+
+== Overview
+
+This workshop provides hands-on exercises for Red Hat Advanced Cluster Management (RHACM) {acm_version} on OpenShift {ocp_version}.
+
+You will learn to manage a multicluster fleet, deploy applications with ArgoCD, enforce governance policies, and integrate AI-powered operations -- all from a single ACM hub.
+
+*Target versions:* OpenShift {ocp_version} / RHACM {acm_version}
+
+== Prerequisites
+
+* A running OpenShift {ocp_version}+ cluster with RHACM {acm_version} installed
+* The `oc` CLI tool installed
+* The `kubectl` CLI tool installed
+* The `git` CLI tool installed
+* A GitHub account
+* AWS credentials (for provisioning managed clusters via Hive)
+
+== Quick Start
+
+Run the setup validation script to confirm your environment is ready:
+
+[source,bash]
+----
+./setup.sh
+----
+
+== Workshop Architecture
+
+[source]
+----
+Hub Cluster (OCP 4.20, ACM 2.15, SNO)
+  ├── local-cluster   (self-managed, labels: environment=hub)
+  ├── standard-cluster (Hive AWS SNO, labels: environment=dev)
+  └── gpu-cluster      (Hive AWS SNO g6.4xlarge, labels: gpu=true, accelerator=nvidia-l4)
+----
+
+== Modules
+
+. xref:01-installation.adoc[RHACM Installation & Cluster Provisioning]
+. xref:02-cluster-management.adoc[Cluster Management]
+. xref:03-observability.adoc[Observability]
+. xref:04-application-lifecycle.adoc[Application Lifecycle]
+. xref:05-governance.adoc[Governance Risk and Compliance]
+. xref:06-advanced-policy.adoc[Advanced Policy Management]
+. xref:07-ai-operations.adoc[AI-Powered Operations]

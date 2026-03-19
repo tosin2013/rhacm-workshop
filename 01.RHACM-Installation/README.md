@@ -1,43 +1,96 @@
-# Exercise 1 - Advanced Cluster Management Installation 
+# Exercise 1 - Advanced Cluster Management Installation & Cluster Provisioning
 
-In this exercise you will install the Advanced Cluster Management for Kubernetes operator. In order to comply with the workshop's rationale please install Red Hat Advanced Cluster Management for Kubernetes 2.10. During the installation, when choosing the update channel, select **release-2.10**.
-https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.10
+In this exercise you will verify the Advanced Cluster Management for Kubernetes installation and provision managed clusters using Hive. This workshop targets **Red Hat Advanced Cluster Management 2.15** on **OpenShift 4.20**.
 
-To install the up-to-date instance of Advanced Cluster Management, follow the steps presented in the **Installation** section of the workshop’s presentation - [https://docs.google.com/presentation/d/114op7K07TIOUhpTO1tVZUrJj6r1gzl6S7bu5OZl6rr8/edit?usp=sharing](https://docs.google.com/presentation/d/114op7K07TIOUhpTO1tVZUrJj6r1gzl6S7bu5OZl6rr8/edit?usp=sharing).
+https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.15
 
-## Deploy OpenShift Cluster on AWS
-This is an script used to deploy OpenShift on AWS
-Pre-requisite: Install wget package as needed based on your OS.
-```
-sudo yum install wget
-```
+## 1.1 Verify ACM Installation
+
+If ACM is already installed on your hub cluster (as in this workshop environment), verify it:
 
 ```
-curl -OL https://gist.githubusercontent.com/tosin2013/76e47de3f32de4486ab4699c21b2188e/raw/959ae5dd2117edf124e4531cfae5216c722a3358/openshift-ai-workload.sh
-# optional change  .compute[0].replicas to 3
-vim openshift-ai-workload.sh
-chmod +x openshift-ai-workload.sh
-export aws_access_key_id="YOUR_ACCESS_KEY_ID"
-export aws_secret_access_key="YOUR_SECRET_ACCESS_KEY"
-export aws_region="YOUR_AWS_REGION"
-./openshift-ai-workload.sh m6i.2xlarge
+<hub> $ oc get multiclusterhub -A
+NAMESPACE                 NAME              STATUS    AGE
+open-cluster-management   multiclusterhub   Running   ...
+
+<hub> $ oc get csv -n open-cluster-management | grep advanced-cluster-management
+advanced-cluster-management.v2.15.1   Advanced Cluster Management for Kubernetes   2.15.1   Succeeded
 ```
 
-## Recommend: Configure SSL Certs
-Pre-requisite: Install podman/docker
-``` sudo yum install podman
+Confirm the subscription channel:
+```
+<hub> $ oc get sub advanced-cluster-management -n open-cluster-management -o jsonpath='{.spec.channel}'
+release-2.15
 ```
 
-```
-export KUBECONFIG=/home/lab-user/cluster/auth/kubeconfig
-curl -OL https://gist.githubusercontent.com/tosin2013/866522a1420ac22f477d2253121b4416/raw/35d6fa88675d63b6ecf58a827df32356ccf3ddde/configure-keys-on-openshift.sh
-chmod +x configure-keys-on-openshift.sh
-./configure-keys-on-openshift.sh <AWS_ACCESS_KEY> <AWS_SECRET_ACCESS_KEY> podman 
-```
-TIP: If facing issues with directory creation for letsencrypt, switch DIR (/home/lab-user/letsencrypt) in the script, instead of placing it /etc/letsencrypt/
+## 1.2 Install ACM (If Not Pre-Installed)
 
-# Deploy RHACM using kustommize
+If ACM is not yet installed, install the operator by selecting **release-2.15** as the update channel. Follow the steps in the **Installation** section of the workshop's presentation - [https://docs.google.com/presentation/d/114op7K07TIOUhpTO1tVZUrJj6r1gzl6S7bu5OZl6rr8/edit?usp=sharing](https://docs.google.com/presentation/d/114op7K07TIOUhpTO1tVZUrJj6r1gzl6S7bu5OZl6rr8/edit?usp=sharing).
+
+Alternatively, deploy using Kustomize:
 ```
 oc create -k https://github.com/tosin2013/sno-quickstarts/gitops/cluster-config/rhacm-operator/base
 oc create -k https://github.com/tosin2013/sno-quickstarts/gitops/cluster-config/rhacm-instance/overlays/basic
+```
+
+## 1.3 Provision Managed Clusters via Hive on AWS
+
+In this section you will provision two additional managed clusters using ACM's Hive provisioning to create a true multicluster environment:
+
+- **standard-cluster** — SNO on `m6i.2xlarge` for application deployment and policy exercises
+- **gpu-cluster** — SNO on `g6.4xlarge` with an NVIDIA L4 GPU for AI workload placement
+
+### Step 1 - Configure AWS Credentials
+
+Edit the credentials secret with your AWS access keys and pull secret:
+
+```
+<hub> $ vim 01.RHACM-Installation/cluster-provisioning/aws-credentials-secret.yaml
+```
+
+Replace the placeholder values, then apply:
+```
+<hub> $ oc apply -f 01.RHACM-Installation/cluster-provisioning/aws-credentials-secret.yaml
+```
+
+### Step 2 - Update Cluster Configurations
+
+Edit both `standard-cluster.yaml` and `gpu-cluster.yaml` in `01.RHACM-Installation/cluster-provisioning/` to set:
+- `<YOUR_BASE_DOMAIN>` — your Route53 base domain (e.g., `sandbox1234.opentlc.com`)
+- `<YOUR_SSH_PUBLIC_KEY>` — your SSH public key
+
+### Step 3 - Provision the Clusters
+
+```
+<hub> $ oc apply -f 01.RHACM-Installation/cluster-provisioning/standard-cluster.yaml
+<hub> $ oc apply -f 01.RHACM-Installation/cluster-provisioning/gpu-cluster.yaml
+```
+
+Cluster provisioning takes approximately 30-45 minutes. You can proceed with **Module 02** on `local-cluster` while the clusters provision.
+
+Monitor provisioning status:
+```
+<hub> $ oc get clusterdeployment -A
+NAMESPACE          NAME               PLATFORM   REGION      INSTALLED   VERSION   POWERSTATE
+gpu-cluster        gpu-cluster        aws        us-east-2   false
+standard-cluster   standard-cluster   aws        us-east-2   false
+```
+
+### Step 4 - Install NVIDIA GPU Operator on GPU Cluster
+
+After the gpu-cluster is ready, apply the GPU Operator policy. This ACM policy automatically installs the NVIDIA GPU Operator on any cluster labeled `gpu=true`:
+
+```
+<hub> $ oc apply -f 01.RHACM-Installation/cluster-provisioning/gpu-operator-policy.yaml
+```
+
+### Step 5 - Verify All Clusters
+
+Once provisioning completes, verify all managed clusters are available:
+```
+<hub> $ oc get managedclusters
+NAME               HUB ACCEPTED   MANAGED CLUSTER URLS   JOINED   AVAILABLE   AGE
+local-cluster      true           https://...            True     True        ...
+standard-cluster   true           https://...            True     True        ...
+gpu-cluster        true           https://...            True     True        ...
 ```

@@ -24,23 +24,22 @@ EOF
 <hub> $ oc apply -f policies-namespace.yaml
 ```
 
-After the namespace is created, create a PlacementRule resource. We will use the PlacementRule to associate the below policies with all clusters that are associated with the environment=production label.
+After the namespace is created, create a Placement resource. We will use the Placement to associate the below policies with all clusters that are associated with the environment=production label.
 
 ```
 <hub> $ cat >> placementrule-policies.yaml << EOF
 ---
-apiVersion: apps.open-cluster-management.io/v1
-kind: PlacementRule
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
 metadata:
   name: prod-policies-clusters
   namespace: rhacm-policies
 spec:
-  clusterConditions:
-    - type: ManagedClusterConditionAvailable
-      status: "True"
-  clusterSelector:
-    matchLabels:
-      environment: production
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchLabels:
+            environment: production
 EOF
 
 <hub> $ oc apply -f placementrule-policies.yaml
@@ -115,8 +114,8 @@ metadata:
   namespace: rhacm-policies
 placementRef:
   name: prod-policies-clusters
-  kind: PlacementRule
-  apiGroup: apps.open-cluster-management.io
+  kind: Placement
+  apiGroup: cluster.open-cluster-management.io
 subjects:
 - name: policy-networkpolicy-webserver
   kind: Policy
@@ -129,13 +128,13 @@ EOF
 The above command creates two objects _Policy_ and _PlacementBinding_.
 
 * The _Policy_ objects define the NetworkPolicy that will be deployed on the managed cluster. It associates the NetworkPolicy to the webserver-acm namespace, and enforces it.
-* The _PlacementRule_ resource associates the _Policy_ object with the _PlacementRule _resource that was created in the beginning of the exercise. Thereby, allowing the Policy to apply to all clusters with the _environment=production_ label.
+* The _PlacementBinding_ resource associates the _Policy_ object with the _Placement_ resource that was created at the beginning of the exercise. Thereby, allowing the Policy to apply to all clusters with the _environment=production_ label.
 
 After the creation of the objects, navigate to **Governance** -> **Policies** in the Red Hat Advanced Cluster Management for Kubernetes console. Note that the policy is configured, and the managed cluster is compliant.
 
 Make sure that the policy is effective by trying to navigate to the application once again - **https://&lt;webserver application route>/application.html**. (The application should not be accessible).
 
-In order to understand the difference between the various _complianceType_ values you can consult [https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.4/html-single/governance/index#configuration-policy-yaml-table](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.4/html-single/governance/index#configuration-policy-yaml-table):
+In order to understand the difference between the various _complianceType_ values you can consult [https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.15/html-single/governance/index#configuration-policy-yaml-table](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.15/html-single/governance/index#configuration-policy-yaml-table):
  * `musthave` will enforce the object and a subset of the fields
  * `mustonlyhave` will enforce the object with name and all of its fields
  * `mustnothave` will enforce that an object with the same name or labels must not exist
@@ -238,8 +237,8 @@ metadata:
   namespace: rhacm-policies
 placementRef:
   name: prod-policies-clusters
-  kind: PlacementRule
-  apiGroup: apps.open-cluster-management.io
+  kind: Placement
+  apiGroup: cluster.open-cluster-management.io
 subjects:
 - name: policy-networkpolicy-webserver
   kind: Policy
@@ -326,8 +325,8 @@ metadata:
   namespace: rhacm-policies
 placementRef:
   name: prod-policies-clusters
-  kind: PlacementRule
-  apiGroup: apps.open-cluster-management.io
+  kind: Placement
+  apiGroup: cluster.open-cluster-management.io
 subjects:
 - name: policy-limitrange
   kind: Policy
@@ -404,7 +403,7 @@ Before you start this section of the exercise, make sure you delete the namespac
 3. Now, clone the official policy-collection GitHub repository to your machine. The repository contains a binary named **deploy.sh**. The binary is used to associate policies in a GitHub repository to a running Red Hat Advanced Cluster Management for Kubernetes cluster.
 
 ```
-<hub> $ git clone https://github.com/open-cluster-management/policy-collection.git
+<hub> $ git clone https://github.com/open-cluster-management-io/policy-collection.git
 
 <hub> $ cd policy-collection/deploy/
 ```

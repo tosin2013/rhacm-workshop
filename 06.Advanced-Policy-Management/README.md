@@ -68,8 +68,6 @@ spec:
                 audit:
                   logLevel: INFO
                   replicas: 1
-                image:
-                  image: 'registry.redhat.io/rhacm2/gatekeeper-rhel8:v3.3.0'
                 validatingWebhook: Enabled
                 mutatingWebhook: Disabled
                 webhook:
@@ -84,25 +82,27 @@ metadata:
   namespace: rhacm-policies
 placementRef:
   name: placement-policy-gatekeeper-operator
-  kind: PlacementRule
-  apiGroup: apps.open-cluster-management.io
+  kind: Placement
+  apiGroup: cluster.open-cluster-management.io
 subjects:
 - name: policy-gatekeeper-operator
   kind: Policy
   apiGroup: policy.open-cluster-management.io
 ---
-apiVersion: apps.open-cluster-management.io/v1
-kind: PlacementRule
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
 metadata:
   name: placement-policy-gatekeeper-operator
   namespace: rhacm-policies
 spec:
-  clusterConditions:
-    - status: "True"
-      type: ManagedClusterConditionAvailable
-  clusterSelector:
-    matchExpressions:
-      - { key: environment, operator: In, values: ["production"] }
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchExpressions:
+            - key: environment
+              operator: In
+              values:
+                - production
 EOF
 
 <hub> $ oc apply -f policy-gatekeeper-operator.yaml
@@ -221,25 +221,27 @@ metadata:
   namespace: rhacm-policies
 placementRef:
   name: placement-policy-gatekeeper-route-httpsonly
-  kind: PlacementRule
-  apiGroup: apps.open-cluster-management.io
+  kind: Placement
+  apiGroup: cluster.open-cluster-management.io
 subjects:
   - name: policy-gatekeeper-route-httpsonly
     kind: Policy
     apiGroup: policy.open-cluster-management.io
 ---
-apiVersion: apps.open-cluster-management.io/v1
-kind: PlacementRule
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
 metadata:
   name: placement-policy-gatekeeper-route-httpsonly
   namespace: rhacm-policies
 spec:
-  clusterConditions:
-    - status: "True"
-      type: ManagedClusterConditionAvailable
-  clusterSelector:
-    matchExpressions:
-      - { key: environment, operator: In, values: ["production"] }
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchExpressions:
+            - key: environment
+              operator: In
+              values:
+                - production
 EOF
 
 <hub> $ oc apply -f policy-gatekeeper-httpsonly.yaml
@@ -250,21 +252,22 @@ Wait until both policies are in a compliant state before you move forward with t
 Login to the managed cluster and try creating a web server using the next commands -
 
 ```
-<managed cluster> $ oc new-project httpd-test
+<managed cluster> $ oc create namespace httpd-test
 
-<managed cluster> $ oc new-app httpd
+<managed cluster> $ oc create deployment httpd --image=registry.access.redhat.com/ubi9/httpd-24:latest -n httpd-test
+<managed cluster> $ oc expose deployment httpd --port=8080 -n httpd-test
 ```
 
 Try exposing the web server using an unsecure route
 
 ```
-<managed cluster> $ oc expose svc/httpd
+<managed cluster> $ oc expose svc/httpd -n httpd-test
 ```
 
 Try exposing the web server using a secure route
 
 ```
-<managed cluster> $ oc create route edge --service=httpd
+<managed cluster> $ oc create route edge --service=httpd -n httpd-test
 ```
 
 ### Policy #2 - Namespace Management
@@ -347,4 +350,122 @@ Scroll down, you will notice all failing compliance check results. To understand
 
 - Investigate the `ocp4-moderate-banner-or-login-template-set` ComplianceCheckResult. See what you can do to remediate the issue.
 - Investigate the `ocp4-moderate-configure-network-policies-namespaces` ComplianceCheckResult. See what you can do to remediate the issue.
-- Investigate the `rhcos4-moderate-master-no-empty-passwords` ComplianceCheckResult. See what you can do to remediate the issue. 
+- Investigate the `rhcos4-moderate-master-no-empty-passwords` ComplianceCheckResult. See what you can do to remediate the issue.
+
+## Policy Generator with Kustomize
+
+The **Policy Generator** is the modern, recommended approach to managing RHACM policies as code. Instead of hand-crafting large policy YAML documents, you define lightweight policy definitions in a `PolicyGenerator` manifest and use Kustomize to generate the full policy resources. This aligns with GitOps workflows and scales better for large policy sets.
+
+For full documentation, see [Migrate to RHACM Policy Generator](https://developers.redhat.com/articles/2025/02/07/migrate-rhacm-policy-generator-openshift-416).
+
+### Install the Policy Generator Plugin
+
+The Policy Generator is a Kustomize plugin. Install it on your workstation:
+
+```
+<hub> $ mkdir -p ${HOME}/.config/kustomize/plugin/policy.open-cluster-management.io/v1/policygenerator
+
+<hub> $ curl -L https://github.com/open-cluster-management-io/policy-generator-plugin/releases/latest/download/linux-amd64-PolicyGenerator -o ${HOME}/.config/kustomize/plugin/policy.open-cluster-management.io/v1/policygenerator/PolicyGenerator
+
+<hub> $ chmod +x ${HOME}/.config/kustomize/plugin/policy.open-cluster-management.io/v1/policygenerator/PolicyGenerator
+```
+
+### Create a Policy Generator Manifest
+
+Create a directory for your policy generator configuration:
+
+```
+<hub> $ mkdir -p policy-generator-exercise && cd policy-generator-exercise
+```
+
+Create a `policy-generator.yaml` file:
+
+```
+<hub> $ cat >> policy-generator.yaml << EOF
+apiVersion: policy.open-cluster-management.io/v1
+kind: PolicyGenerator
+metadata:
+  name: policy-generator-exercise
+placementBindingDefaults:
+  name: binding-policy-generator
+policyDefaults:
+  namespace: rhacm-policies
+  placement:
+    name: placement-prod-clusters
+    clusterSelectors:
+      environment: production
+  remediationAction: enforce
+  severity: medium
+policies:
+  - name: policy-network-deny-default
+    manifests:
+      - path: manifests/deny-all-networkpolicy.yaml
+  - name: policy-resource-limits
+    manifests:
+      - path: manifests/limitrange.yaml
+EOF
+```
+
+Create the source manifests:
+
+```
+<hub> $ mkdir manifests
+
+<hub> $ cat >> manifests/deny-all-networkpolicy.yaml << EOF
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: deny-by-default
+spec:
+  podSelector: {}
+  ingress: []
+EOF
+
+<hub> $ cat >> manifests/limitrange.yaml << EOF
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: workshop-limit-range
+spec:
+  limits:
+  - default:
+      memory: 512Mi
+    defaultRequest:
+      memory: 256Mi
+    type: Container
+EOF
+```
+
+Create a `kustomization.yaml`:
+
+```
+<hub> $ cat >> kustomization.yaml << EOF
+generators:
+  - policy-generator.yaml
+EOF
+```
+
+### Generate and Apply the Policies
+
+Generate the policies to see what will be created:
+
+```
+<hub> $ kustomize build --enable-alpha-plugins .
+```
+
+Review the output — you should see two `Policy` resources, a `Placement`, and a `PlacementBinding`, all generated from the lightweight definitions above.
+
+Apply the generated policies:
+
+```
+<hub> $ kustomize build --enable-alpha-plugins . | oc apply -f -
+```
+
+Verify in the RHACM Governance dashboard that the generated policies appear and are compliant.
+
+### Advantages of Policy Generator
+
+- **Less YAML**: Source manifests are plain Kubernetes resources; the generator wraps them in ACM policy structures
+- **GitOps-friendly**: Store policy definitions in Git and use CI/CD to generate and apply
+- **Consistent**: Default settings (namespace, placement, remediation) are defined once
+- **Scalable**: Easily manage hundreds of policies across a fleet

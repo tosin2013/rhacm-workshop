@@ -1,5 +1,7 @@
 # Exercise 4 - Application Lifecycle
 
+**Important:** The Application Subscription model (Channel, Subscription, PlacementRule) is **deprecated since ACM 2.13**. The recommended approach is **OpenShift GitOps with ArgoCD**. This module presents ArgoCD first as the primary method, with the legacy Subscription approach available as a reference appendix.
+
 In this exercise you will deploy a demo application onto the cluster using Red Hat Advanced Cluster Management for Kubernetes. You will manage the application versions and use cluster labels to configure placement mechanisms.
 
 In this exercise you will try to deploy an application that manages two versions -
@@ -49,29 +51,28 @@ EOF
 ```
 
 
-* **PlacementRule** - Create a PlacementRule that aggregates all clusters with the **environment=dev** label. This PlacementRule will be used to group all clusters that will run the development version of the application.
+* **Placement** - Create a Placement that aggregates all clusters with the **environment=dev** label. This Placement will be used to group all clusters that will run the development version of the application.
 
 ```
 <hub> $ cat >> placementrule-dev.yaml << EOF
 ---
-apiVersion: apps.open-cluster-management.io/v1
-kind: PlacementRule
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
 metadata:
   name: dev-clusters
   namespace: webserver-acm
 spec:
-  clusterConditions:
-    - type: ManagedClusterConditionAvailable
-      status: "True"
-  clusterSelector:
-    matchLabels:
-      environment: dev
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchLabels:
+            environment: dev
 EOF
 
 <hub> $ oc apply -f placementrule-dev.yaml
 ```
 
-* **Subscription** - Create a subscription that binds between the defined above **PlacementRule** and **Channel** resources. The subscription will point to the relevant path on which the application resources are present - _04.Application-Lifecycle/exercise-application/application-resources_. Furthermore, the Subscription will point to the **dev** branch, in order to deploy the development version of the application.
+* **Subscription** - Create a subscription that binds between the defined above **Placement** and **Channel** resources. The subscription will point to the relevant path on which the application resources are present - _04.Application-Lifecycle/exercise-application/application-resources_. Furthermore, the Subscription will point to the **dev** branch, in order to deploy the development version of the application.
 
 ```
 <hub> $ cat >> subscription-dev.yaml << EOF
@@ -90,7 +91,7 @@ spec:
   channel: webserver-acm/webserver-app
   placement:
     placementRef:
-      kind: PlacementRule
+      kind: Placement
       name: dev-clusters
 EOF
 
@@ -141,29 +142,28 @@ Make sure that the application is running the **development version** on the clu
 
 Now that you have the **Development** version of the application running, it’s time to deploy the **Production** version alongside the **Development** version. Create the next resources -
 
-* **PlacementRule** - Create a PlacementRule that aggregates the **production** clusters using the **environment=production** label.
+* **Placement** - Create a Placement that aggregates the **production** clusters using the **environment=production** label.
 
 ```
 <hub> $ cat >> placementrule-production.yaml << EOF
 ---
-apiVersion: apps.open-cluster-management.io/v1
-kind: PlacementRule
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
 metadata:
   name: prod-clusters
   namespace: webserver-acm
 spec:
-  clusterConditions:
-    - type: ManagedClusterConditionAvailable
-      status: "True"
-  clusterSelector:
-    matchLabels:
-      environment: production
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchLabels:
+            environment: production
 EOF
 
 <hub> $ oc apply -f placementrule-production.yaml
 ```
 
-*   **Subscription** - Create a Subscription that maps the newly created **PlacementRule** to the previously created **Channel**. The subscription uses the **master** branch in the **Channel** in order to run the **production** version of the application.
+*   **Subscription** - Create a Subscription that maps the newly created **Placement** to the previously created **Channel**. The subscription uses the **master** branch in the **Channel** in order to run the **production** version of the application.
 
 ```
 <hub> $ cat >> subscription-production.yaml << EOF
@@ -181,7 +181,7 @@ spec:
   channel: webserver-acm/webserver-app
   placement:
     placementRef:
-      kind: PlacementRule
+      kind: Placement
       name: prod-clusters
 EOF
 
@@ -327,7 +327,7 @@ spec:
     argoNamespace: openshift-gitops
   placementRef:
     kind: Placement
-    apiVersion: cluster.open-cluster-management.io/v1alpha1
+    apiVersion: cluster.open-cluster-management.io/v1beta1
     name: all-clusters
 EOF
 
@@ -367,4 +367,133 @@ Make sure that the application is available by navigating to its Route resource.
 
 NAME        HOST/PORT                              PATH                SERVICES    PORT       TERMINATION   WILDCARD
 webserver   webserver-webserver-prod.apps.<FQDN>   /application.html    webserver   8080-tcp   edge          None
+```
+
+## Placement API Deep Dive
+
+The **Placement** API (`cluster.open-cluster-management.io/v1beta1`) is the modern replacement for `PlacementRule`. It provides powerful cluster selection capabilities beyond simple label matching, including tolerations, prioritizers for scoring-based placement, and decision groups for progressive rollouts.
+
+### Tolerations
+
+Clusters can have taints to prevent workloads from being scheduled to them. Placement tolerations allow specific placements to "tolerate" these taints.
+
+Add a taint to gpu-cluster to reserve it for AI workloads only:
+
+```
+<hub> $ oc patch managedcluster gpu-cluster --type=merge -p '{"spec":{"taints":[{"key":"workload-type","value":"ai","effect":"NoSelect"}]}}'
+```
+
+Create a Placement that tolerates this taint:
+
+```
+<hub> $ cat <<EOF | oc apply -f -
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: ai-workload-placement
+  namespace: rhacm-policies
+spec:
+  tolerations:
+    - key: workload-type
+      value: ai
+      operator: Equal
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchLabels:
+            gpu: "true"
+EOF
+```
+
+Verify the PlacementDecision:
+```
+<hub> $ oc get placementdecision -n rhacm-policies -l cluster.open-cluster-management.io/placement=ai-workload-placement -o yaml
+```
+
+### Prioritizers (Scoring-Based Placement)
+
+Prioritizers score clusters to determine the best placement targets. ACM provides built-in prioritizers and supports custom scoring via `AddOnPlacementScores`.
+
+Create a Placement that prefers clusters with certain characteristics using built-in prioritizers:
+
+```
+<hub> $ cat <<EOF | oc apply -f -
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: balanced-placement
+  namespace: rhacm-policies
+spec:
+  numberOfClusters: 1
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchExpressions:
+            - key: environment
+              operator: In
+              values:
+                - dev
+                - production
+                - ai
+  prioritizerPolicy:
+    mode: Exact
+    configurations:
+      - scoreCoordinate:
+          type: BuiltIn
+          builtIn: ResourceAllocatableCPU
+        weight: 3
+      - scoreCoordinate:
+          type: BuiltIn
+          builtIn: ResourceAllocatableMemory
+        weight: 1
+EOF
+```
+
+This Placement selects the single cluster with the best combination of available CPU (weighted 3x) and available memory.
+
+Check the placement decision:
+```
+<hub> $ oc get placementdecision -n rhacm-policies -l cluster.open-cluster-management.io/placement=balanced-placement -o jsonpath='{.items[0].status.decisions[*].clusterName}'
+```
+
+### Decision Groups (Progressive Rollout)
+
+Decision groups allow you to organize placement decisions into groups for canary deployments or progressive rollouts:
+
+```
+<hub> $ cat <<EOF | oc apply -f -
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: progressive-rollout
+  namespace: rhacm-policies
+spec:
+  decisionStrategy:
+    groupStrategy:
+      clustersPerDecisionGroup: 1
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchExpressions:
+            - key: environment
+              operator: In
+              values:
+                - dev
+                - production
+                - hub
+EOF
+```
+
+This creates separate PlacementDecision resources for each cluster, enabling staged rollout strategies with `RolloutStrategy` on ManifestWork or policy distribution.
+
+Check the decision groups:
+```
+<hub> $ oc get placementdecision -n rhacm-policies -l cluster.open-cluster-management.io/placement=progressive-rollout
+```
+
+### Cleanup
+
+```
+<hub> $ oc delete placement ai-workload-placement balanced-placement progressive-rollout -n rhacm-policies
+<hub> $ oc patch managedcluster gpu-cluster --type=json -p '[{"op":"remove","path":"/spec/taints"}]'
 ```

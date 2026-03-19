@@ -1,5 +1,5 @@
-apiVersion: apps.openshift.io/v1
-kind: DeploymentConfig
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: mariadb
   namespace: mariadb
@@ -8,6 +8,10 @@ metadata:
     type: database
 spec:
   replicas: 2
+  selector:
+    matchLabels:
+      app: mariadb
+      type: database
   template:
     metadata:
       labels:
@@ -16,7 +20,7 @@ spec:
     spec:
       containers:
         - name: mariadb
-          image: docker.io/bitnami/mariadb:10.3
+          image: docker.io/bitnami/mariadb:11.4
           ports:
             - containerPort: 3306
               name: db-port

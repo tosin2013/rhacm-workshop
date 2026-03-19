@@ -69,8 +69,8 @@ metadata:
   namespace: rhacm-policies
 placementRef:
   name: prod-policies-clusters
-  kind: PlacementRule
-  apiGroup: apps.open-cluster-management.io
+  kind: Placement
+  apiGroup: cluster.open-cluster-management.io
 subjects:
 - name: policy-networkpolicy-webserver
   kind: Policy

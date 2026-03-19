@@ -13,18 +13,17 @@ spec:
   type: Git
   pathname: https://github.com/michaelkotelnikov/rhacm-workshop.git 
 ---
-apiVersion: apps.open-cluster-management.io/v1
-kind: PlacementRule
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
 metadata:
   name: prod-clusters
   namespace: mariadb-metrics
 spec:
-  clusterConditions:
-    - type: ManagedClusterConditionAvailable
-      status: "True"
-  clusterSelector:
-    matchLabels:
-      environment: production
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchLabels:
+            environment: production
 ---
 apiVersion: apps.open-cluster-management.io/v1
 kind: Subscription
@@ -40,7 +39,7 @@ spec:
   channel: mariadb-metrics/mariadb-metrics
   placement:
     placementRef:
-      kind: PlacementRule
+      kind: Placement
       name: prod-clusters
 ---
 apiVersion: app.k8s.io/v1beta1

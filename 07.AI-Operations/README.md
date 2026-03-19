@@ -1,0 +1,249 @@
+# Exercise 7 - AI-Powered Operations
+
+This module introduces AI-powered multicluster operations with Red Hat Advanced Cluster Management. You will place AI workloads on GPU-capable clusters using the Placement API and interact with your fleet using natural language through the Kubernetes MCP Server and OpenShift Lightspeed.
+
+**Prerequisites:**
+- Completed Module 01 (clusters provisioned and GPU Operator installed on gpu-cluster)
+- The gpu-cluster has the label `gpu=true` and the NVIDIA GPU Operator installed
+- OpenShift Lightspeed is installed on the hub cluster (optional, for exercise 7B)
+
+## 7A - AI Workload Placement on GPU Cluster
+
+In this exercise, you will deploy an AI inference workload and use ACM's Placement API with prioritizers to route it to the GPU-enabled cluster.
+
+### Step 1 - Verify GPU Cluster Readiness
+
+Confirm the gpu-cluster is available and the NVIDIA GPU Operator is functioning:
+
+```
+<hub> $ oc get managedcluster gpu-cluster
+NAME          HUB ACCEPTED   MANAGED CLUSTER URLS   JOINED   AVAILABLE   AGE
+gpu-cluster   true           https://...            True     True        ...
+```
+
+Check the GPU Operator policy compliance:
+
+```
+<hub> $ oc get policy policy-nvidia-gpu-operator -n rhacm-policies
+NAME                          REMEDIATION ACTION   COMPLIANCE STATE   AGE
+policy-nvidia-gpu-operator    enforce              Compliant          ...
+```
+
+On the gpu-cluster, verify the GPU node advertises `nvidia.com/gpu` resources:
+
+```
+<gpu-cluster> $ oc get node -o json | jq '.items[0].status.capacity | {cpu, memory, "nvidia.com/gpu"}'
+{
+  "cpu": "16",
+  "memory": "65536Mi",
+  "nvidia.com/gpu": "1"
+}
+```
+
+### Step 2 - Create the AI Inference Workload
+
+We will deploy a lightweight ONNX Runtime model server that serves a simple image classification model. This workload requests GPU resources when available.
+
+Apply the workload resources:
+
+```
+<hub> $ oc apply -f 07.AI-Operations/exercise-placement/ai-workload-namespace.yaml
+<hub> $ oc apply -f 07.AI-Operations/exercise-placement/ai-workload-placement.yaml
+<hub> $ oc apply -f 07.AI-Operations/exercise-placement/ai-workload-app.yaml
+```
+
+### Step 3 - Examine the Placement with GPU Prioritizer
+
+Review the Placement resource:
+
+```
+<hub> $ oc get placement ai-workload-placement -n ai-workload -o yaml
+```
+
+The key elements are:
+- **`predicates`**: Requires clusters with `gpu=true` label
+- **`prioritizerPolicy`**: Scores clusters by available GPU resources
+- **`numberOfClusters: 1`**: Selects the single best cluster
+
+Check the PlacementDecision:
+
+```
+<hub> $ oc get placementdecision -n ai-workload -l cluster.open-cluster-management.io/placement=ai-workload-placement -o jsonpath='{.items[0].status.decisions[*].clusterName}'
+gpu-cluster
+```
+
+The workload is routed to `gpu-cluster` because it is the only cluster matching the `gpu=true` label and has the highest GPU resource score.
+
+### Step 4 - Test Placement Behavior
+
+Modify the Placement to require `gpu-count >= 2` and observe the behavior:
+
+```
+<hub> $ oc patch placement ai-workload-placement -n ai-workload --type=merge -p '
+spec:
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchLabels:
+            gpu: "true"
+        claimSelector:
+          matchExpressions:
+            - key: gpu-count
+              operator: Gt
+              values:
+                - "1"
+'
+```
+
+Check the PlacementDecision again:
+
+```
+<hub> $ oc get placementdecision -n ai-workload -l cluster.open-cluster-management.io/placement=ai-workload-placement -o jsonpath='{.items[0].status.decisions}'
+[]
+```
+
+No cluster matches because no cluster has `gpu-count >= 2`. This demonstrates how ACM prevents workload misplacement.
+
+Revert to the original Placement:
+
+```
+<hub> $ oc apply -f 07.AI-Operations/exercise-placement/ai-workload-placement.yaml
+```
+
+### Step 5 - Cleanup
+
+```
+<hub> $ oc delete -f 07.AI-Operations/exercise-placement/ai-workload-app.yaml
+<hub> $ oc delete -f 07.AI-Operations/exercise-placement/ai-workload-placement.yaml
+<hub> $ oc delete -f 07.AI-Operations/exercise-placement/ai-workload-namespace.yaml
+```
+
+---
+
+## 7B - Kubernetes MCP Server + OpenShift Lightspeed
+
+In this exercise, you will set up the Kubernetes MCP Server to enable AI assistants (Cursor, VS Code) to query your RHACM fleet using natural language.
+
+### Step 1 - Create a Service Account for the MCP Server
+
+Create a dedicated namespace and service account with read-only cluster access:
+
+```
+<hub> $ oc apply -f 07.AI-Operations/exercise-mcp/mcp-serviceaccount.yaml
+```
+
+### Step 2 - Generate a Kubeconfig for the MCP Server
+
+Mint a short-lived token and build a kubeconfig:
+
+```
+<hub> $ export MCP_TOKEN=$(oc create token mcp-viewer -n mcp --duration=2h)
+<hub> $ export API_SERVER=$(oc whoami --show-server)
+<hub> $ export CA_DATA=$(oc get secret -n mcp -o jsonpath='{.items[0].data.ca\.crt}' 2>/dev/null || oc config view --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}')
+
+<hub> $ cat > /tmp/mcp-kubeconfig.yaml << EOF
+apiVersion: v1
+kind: Config
+clusters:
+  - cluster:
+      server: ${API_SERVER}
+      certificate-authority-data: ${CA_DATA}
+    name: hub-cluster
+contexts:
+  - context:
+      cluster: hub-cluster
+      user: mcp-viewer
+    name: mcp-context
+current-context: mcp-context
+users:
+  - name: mcp-viewer
+    user:
+      token: ${MCP_TOKEN}
+EOF
+```
+
+### Step 3 - Configure MCP in Your IDE
+
+Add the Kubernetes MCP Server to your IDE's MCP configuration.
+
+For **Cursor**, add to `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "kubernetes": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "kubernetes-mcp-server@latest",
+        "--kubeconfig", "/tmp/mcp-kubeconfig.yaml",
+        "--read-only"
+      ]
+    }
+  }
+}
+```
+
+For **VS Code**, add to your settings or MCP config with the same command.
+
+### Step 4 - Query Your Fleet with Natural Language
+
+Once configured, you can ask your AI assistant questions about the RHACM fleet:
+
+- "Show me all managed clusters and their status"
+- "List all pods in the open-cluster-management namespace"
+- "What policies are non-compliant across my fleet?"
+- "Show me the GPU node capacity on gpu-cluster"
+- "Get events from the nvidia-gpu-operator namespace on gpu-cluster"
+- "What PlacementDecisions exist and which clusters are they targeting?"
+
+### Step 5 - OpenShift Lightspeed MCP Integration (Advanced, Optional)
+
+If OpenShift Lightspeed is installed on your hub cluster, you can also connect its MCP interface for OpenShift-specific knowledge.
+
+Expose the Lightspeed service:
+
+```
+<hub> $ oc apply -f 07.AI-Operations/exercise-lightspeed/lightspeed-route.yaml
+```
+
+Get the Lightspeed endpoint:
+
+```
+<hub> $ export OLS_URL=$(oc get route lightspeed-mcp -n openshift-lightspeed -o jsonpath='{.spec.host}')
+<hub> $ echo "Lightspeed MCP endpoint: https://${OLS_URL}"
+```
+
+Clone and configure the OLS MCP server:
+
+```
+<hub> $ git clone https://github.com/thoraxe/ols-mcp.git /tmp/ols-mcp
+```
+
+Add to your Cursor `.cursor/mcp.json` alongside the Kubernetes MCP server:
+
+```json
+{
+  "mcpServers": {
+    "kubernetes": {
+      "command": "npx",
+      "args": ["-y", "kubernetes-mcp-server@latest", "--kubeconfig", "/tmp/mcp-kubeconfig.yaml", "--read-only"]
+    },
+    "openshift-lightspeed": {
+      "command": "python",
+      "args": ["/tmp/ols-mcp/server.py"],
+      "env": {
+        "OLS_URL": "https://<your-lightspeed-route>"
+      }
+    }
+  }
+}
+```
+
+Now you can ask questions that combine live cluster data with OpenShift documentation knowledge:
+
+- "Based on the current cluster state, what security policies should I add?"
+- "How do I configure the GPU operator for multi-instance GPU on my gpu-cluster?"
+- "What's the recommended way to set up network policies for my namespaces?"
+
+For more details, see [How to Connect OpenShift Lightspeed MCP to Your IDE](https://developers.redhat.com/articles/2026/02/04/how-connect-openshift-lightspeed-mcp-your-ide).

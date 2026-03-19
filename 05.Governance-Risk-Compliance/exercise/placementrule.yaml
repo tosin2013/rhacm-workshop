@@ -1,16 +1,15 @@
 ---
-apiVersion: apps.open-cluster-management.io/v1
-kind: PlacementRule
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
 metadata:
   name: prod-policies-clusters
   namespace: rhacm-policies
 spec:
-  clusterConditions:
-  - type: ManagedClusterConditionAvailable
-    status: "True"
-  clusterSelector:
-    matchExpressions:
-      - key: environment
-        operator: In
-        values:
-        - "production"
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchExpressions:
+            - key: environment
+              operator: In
+              values:
+                - production

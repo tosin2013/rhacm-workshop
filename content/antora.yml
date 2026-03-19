@@ -1,0 +1,5 @@
+name: modules
+title: RHACM Workshop
+version: ~
+nav:
+  - modules/ROOT/nav.adoc

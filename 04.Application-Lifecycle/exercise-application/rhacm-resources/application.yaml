@@ -13,31 +13,29 @@ spec:
   type: Git
   pathname: https://github.com/tosin2013/rhacm-workshop.git 
 ---
-apiVersion: apps.open-cluster-management.io/v1
-kind: PlacementRule
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
 metadata:
   name: dev-clusters
   namespace: webserver-acm
 spec:
-  clusterConditions:
-    - type: ManagedClusterConditionAvailable
-      status: "True"
-  clusterSelector:
-    matchLabels:
-      environment: dev
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchLabels:
+            environment: dev
 ---
-apiVersion: apps.open-cluster-management.io/v1
-kind: PlacementRule
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
 metadata:
   name: prod-clusters
   namespace: webserver-acm
 spec:
-  clusterConditions:
-    - type: ManagedClusterConditionAvailable
-      status: "True"
-  clusterSelector:
-    matchLabels:
-      environment: production
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchLabels:
+            environment: production
 ---
 apiVersion: apps.open-cluster-management.io/v1
 kind: Subscription
@@ -52,7 +50,7 @@ spec:
   channel: webserver-acm/webserver-app
   placement:
     placementRef:
-      kind: PlacementRule
+      kind: Placement
       name: prod-clusters
 ---
 apiVersion: apps.open-cluster-management.io/v1
@@ -69,7 +67,7 @@ spec:
   channel: webserver-acm/webserver-app
   placement:
     placementRef:
-      kind: PlacementRule
+      kind: Placement
       name: dev-clusters
 ---
 apiVersion: app.k8s.io/v1beta1

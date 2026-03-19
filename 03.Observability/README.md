@@ -41,7 +41,7 @@ config:
 
 To create an instance of `Multi Cluster Obervability`, apply the next object to the  `open-cluster-management-observability` namespace on the hub cluster.
 
-**NOTE** If you're not using an OpenShift cluster that's deployed on AWS, make sure to modify the StorageClass definition in the below YAML.
+**NOTE** The `multiclusterobservability.yaml` uses `ocs-external-storagecluster-ceph-rbd` as the storage class (ODF). If you're using AWS with EBS, change `statefulSetStorageClass` to `gp3-csi` or `gp2`. Adjust the storage class to match your environment.
 
 ```
 <hub> $ oc apply -f https://raw.githubusercontent.com/tosin2013/rhacm-workshop/master/03.Observability/exercise/multiclusterobservability.yaml -n open-cluster-management-observability
@@ -96,7 +96,7 @@ metrics-collector-deployment-765946868-hmk5d      1/1     Running   0          2
 
 Now, that all pods are running, log into RHACM's dashboard and navigate to **Clusters** -> **Grafana (top right side)**. Make sure that the dashboards are available and graphs are present.
 
-### For additional install methods refer to the [official documentation](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.10/html-single/observability/index)
+### For additional install methods refer to the [official documentation](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.15/html-single/observability/index)
 You can also refer to this quick start for AWS Deployments and ODF Deployments  [Install MultiCluster Observability](https://github.com/tosin2013/acm-multi-cluster-dashboard/blob/main/install-acm-observability-service.md)
 
 ### 3.2 - Explore the default Grafana dashboards

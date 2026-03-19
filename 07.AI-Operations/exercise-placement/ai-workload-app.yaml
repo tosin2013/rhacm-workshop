@@ -1,0 +1,83 @@
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: policy-ai-workload
+  namespace: ai-workload
+spec:
+  remediationAction: enforce
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: ai-inference-namespace
+        spec:
+          remediationAction: enforce
+          severity: low
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: Namespace
+                metadata:
+                  name: ai-inference
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: ai-inference-deployment
+        spec:
+          remediationAction: enforce
+          severity: low
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: apps/v1
+                kind: Deployment
+                metadata:
+                  name: onnx-inference
+                  namespace: ai-inference
+                  labels:
+                    app: onnx-inference
+                spec:
+                  replicas: 1
+                  selector:
+                    matchLabels:
+                      app: onnx-inference
+                  template:
+                    metadata:
+                      labels:
+                        app: onnx-inference
+                    spec:
+                      containers:
+                        - name: onnx-server
+                          image: mcr.microsoft.com/onnxruntime/server:latest
+                          ports:
+                            - containerPort: 8001
+                              name: grpc
+                            - containerPort: 8000
+                              name: http
+                          resources:
+                            requests:
+                              cpu: "500m"
+                              memory: "512Mi"
+                            limits:
+                              cpu: "2"
+                              memory: "2Gi"
+                              nvidia.com/gpu: "1"
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: binding-ai-workload
+  namespace: ai-workload
+placementRef:
+  name: ai-workload-placement
+  kind: Placement
+  apiGroup: cluster.open-cluster-management.io
+subjects:
+  - name: policy-ai-workload
+    kind: Policy
+    apiGroup: policy.open-cluster-management.io

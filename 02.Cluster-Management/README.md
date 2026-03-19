@@ -1,13 +1,18 @@
-# Exercise 2 - Managing an existing cluster using Advanced Cluster Management
+# Exercise 2 - Managing Clusters using Advanced Cluster Management
 
-In this exercise you manage the existing cluster on the Red Hat Advanced Cluster Management stack - `local-cluster`. You will attach labels to the cluster, visualize its resources and perform updates to the OpenShift Platform.
+In this exercise you manage the clusters on the Red Hat Advanced Cluster Management stack. You will work with `local-cluster` and any additional clusters provisioned in Module 01 (standard-cluster, gpu-cluster). You will attach labels to clusters, visualize their resources, inspect the fleet, and review upgrade options.
 
+## 2.1 Label and Inspect Managed Clusters
 
-## 2.1 Import an existing cluster
+1. Modify the attributes of the managed clusters in Red Hat Advanced Cluster Management -
 
-1. Modify the attributes of the managed cluster in Red Hat Advanced Cluster Management -
-*   **Name**: local-cluster
+For **local-cluster**:
 *   **labels**: 
+    * environment=hub
+    * owner=&lt;your-name>
+
+For **standard-cluster** (if provisioned):
+*   **labels**:
     * environment=dev
     * owner=&lt;your-name>
     
@@ -58,9 +63,11 @@ In this exercise you will be using the Red Hat Advanced Cluster Management porta
 *   Check the full path of the **alertmanager-main-0** pod configuration file (can be found using the pod logs and pod resource definition).
 
 
-## 2.3 Upgrade the cluster using Advanced Cluster Management
+## 2.3 Review Cluster Upgrades using Advanced Cluster Management
 
-**NOTE**: Do this exercise towards the end of the day. The upgrading process may take up to an hour to complete.
+**WARNING**: On a single-node cluster (SNO), performing an actual upgrade is risky and may cause extended downtime. This exercise focuses on **reviewing** available upgrades rather than executing them. If you have a multi-node standard-cluster provisioned, you may perform an actual upgrade on that cluster instead.
 
-1. Change the **channel version** on the local-cluster from stable-**4.x** to stable-**4.x+1**.
-2. Upgrade the cluster using Red Hat Advanced Cluster Management.
+1. In the RHACM console, navigate to **Clusters** and select a managed cluster.
+2. Review the available upgrade paths by checking the **channel version** (stable / candidate / fast) - (Search for **kind:ClusterVersion** CR).
+3. Examine what versions are available for upgrade without actually initiating the upgrade.
+4. If you have a non-SNO managed cluster (e.g., standard-cluster), you may optionally change the **channel version** from stable-**4.x** to stable-**4.x+1** and initiate the upgrade using Red Hat Advanced Cluster Management. The upgrading process may take up to an hour to complete.

@@ -1,0 +1,24 @@
+---
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: ai-workload-placement
+  namespace: ai-workload
+spec:
+  numberOfClusters: 1
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchLabels:
+            gpu: "true"
+  prioritizerPolicy:
+    mode: Exact
+    configurations:
+      - scoreCoordinate:
+          type: BuiltIn
+          builtIn: ResourceAllocatableCPU
+        weight: 1
+      - scoreCoordinate:
+          type: BuiltIn
+          builtIn: ResourceAllocatableMemory
+        weight: 1

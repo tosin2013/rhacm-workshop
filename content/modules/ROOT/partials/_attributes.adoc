@@ -1,0 +1,8 @@
+:ocp_version: 4.20
+:acm_version: 2.15
+:acm_full_version: 2.15.1
+:mce_version: 2.10.1
+:acm_docs_url: https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.15
+:acm_channel: release-2.15
+:workshop_repo: https://github.com/tosin2013/rhacm-workshop
+:storage_class: ocs-external-storagecluster-ceph-rbd

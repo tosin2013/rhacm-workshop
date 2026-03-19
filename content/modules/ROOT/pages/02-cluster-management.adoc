@@ -1,0 +1,82 @@
+= Exercise 2 - Managing Clusters using Advanced Cluster Management
+
+include::partial$_attributes.adoc[]
+
+In this exercise you manage the clusters on the Red Hat Advanced Cluster Management stack. You will work with `local-cluster` and any additional clusters provisioned in Module 01 (standard-cluster, gpu-cluster). You will attach labels to clusters, visualize their resources, inspect the fleet, and review upgrade options.
+
+== 2.1 Label and Inspect Managed Clusters
+
+. Modify the attributes of the managed clusters in Red Hat Advanced Cluster Management -
+
+For *local-cluster*:
+
+* *labels*:
+** environment=hub
+** owner=<your-name>
+
+For *standard-cluster* (if provisioned):
+
+* *labels*:
+** environment=dev
+** owner=<your-name>
+
+In order to associate the labels with local-cluster, follow the next steps (You may use the presentation for guidance) -
+
+* Navigate to *Clusters* -> *local-cluster* -> *Actions* -> *Edit labels*.
+* Add the labels in the `key=value` format.
+
+. Log into the cluster using the *oc* cli tool.
+
+[source,bash]
+----
+<managed cluster> $ oc login -u <admin-user> -p <password> https://api.cluster.2222.sandbox.opentlc.com:6443
+----
+
+. Make sure that all of the agent pods are up and running on the cluster.
+
+[source,bash]
+----
+<managed cluster> $ oc get pods -n open-cluster-management-agent
+NAME                                         	READY   STATUS	RESTARTS   AGE
+klusterlet-645d98d7d5-hnn2z                  	1/1 	Running   0      	46m
+klusterlet-registration-agent-66fdc479cf-ltlx6   1/1 	Running   0      	46m
+klusterlet-registration-agent-66fdc479cf-qnhzj   1/1 	Running   0      	46m
+klusterlet-registration-agent-66fdc479cf-t8x5n   1/1 	Running   0      	46m
+klusterlet-work-agent-6b8b99b899-27ht9       	1/1 	Running   0      	46m
+klusterlet-work-agent-6b8b99b899-95dkr       	1/1 	Running   1      	46m
+klusterlet-work-agent-6b8b99b899-vdp9r       	1/1 	Running   0      	46m
+
+<managed cluster> $ oc get pods -n open-cluster-management-agent-addon
+NAME                                           READY   STATUS    RESTARTS   AGE
+application-manager-7c8879d57f-4x7ft           1/1     Running   0          24m
+cert-policy-controller-7584887cdf-2vkv5        1/1     Running   0          24m
+config-policy-controller-56d8d84c8c-p8z72      1/1     Running   0          24m
+governance-policy-framework-65c46c46c8-xtgfq   2/2     Running   0          24m
+iam-policy-controller-56b5bf6486-795wd         1/1     Running   0          24m
+klusterlet-addon-workmgr-55bc5d4fd-2jp55       1/1     Running   0          24m
+----
+
+== 2.2 Analyzing the managed cluster
+
+In this exercise you will be using the Red Hat Advanced Cluster Management portal to analyze the managed cluster's resources. You may use the workshop presentation for examples and guidance.
+
+. Using Red Hat Advanced Cluster Management, find out what is the cloud provider of the managed cluster.
+. Using Red Hat Advanced Cluster Management, find out the number of nodes that make up the managed cluster. How many CPUs does each node have?
+. Using Red Hat Advanced Cluster Management, check out whether all users can provision new projects on local-cluster (check if the *self-provisioners* ClusterRoleBinding has the system:authenticated:oauth group associated with it).
+. Using Red Hat Advanced Cluster Management, check what *channel version* is associated with local-cluster (stable / candidate / fast) - (Search for *kind:ClusterVersion* CR).
+. Using Red Hat Advanced Cluster Management -
++
+* Check the port number that the *alertmanager-main-0* pod listens on local-cluster (can be found using the pod logs and pod resource definition).
+* Check the full path of the *alertmanager-main-0* pod configuration file (can be found using the pod logs and pod resource definition).
+
+== 2.3 Review Cluster Upgrades using Advanced Cluster Management
+
+[WARNING]
+====
+On a single-node cluster (SNO), performing an actual upgrade is risky and may cause extended downtime. This exercise focuses on *reviewing* available upgrades rather than executing them. If you have a multi-node standard-cluster provisioned, you may perform an actual upgrade on that cluster instead.
+====
+
+. In the RHACM console, navigate to *Clusters* and select a managed cluster.
+. Review the available upgrade paths by checking the *channel version* (stable / candidate / fast) - (Search for *kind:ClusterVersion* CR).
+. Examine what versions are available for upgrade without actually initiating the upgrade.
+. If you have a non-SNO managed cluster (e.g., standard-cluster), you may optionally change the *channel version* from stable-*4.x* to stable-*4.x+1* and initiate the upgrade using Red Hat Advanced Cluster Management. The upgrading process may take up to an hour to complete.

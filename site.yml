@@ -1,0 +1,30 @@
+---
+site:
+  title: RHACM Workshop - ACM 2.15 on OCP 4.20
+  url: https://github.com/tosin2013/rhacm-workshop
+  start_page: modules::index.adoc
+
+content:
+  sources:
+  - url: .
+    start_path: content
+
+ui:
+  bundle:
+    url: https://github.com/rhpds/rhdp_showroom_theme/releases/download/patternfly-6/ui-bundle.zip
+    snapshot: true
+
+antora:
+  extensions:
+  - '@sntke/antora-mermaid-extension'
+
+asciidoc:
+  attributes:
+    experimental: true
+    page-pagination: true
+    guid: '{guid}'
+    openshift_console_url: '{openshift_console_url}'
+    openshift_cluster_ingress_domain: '{openshift_cluster_ingress_domain}'
+
+output:
+  dir: ./www
