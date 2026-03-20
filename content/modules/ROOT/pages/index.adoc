@@ -9,9 +9,13 @@ You will learn to manage a multicluster fleet, deploy applications with ArgoCD, 
 
 *Target versions:* OpenShift {ocp_version} / RHACM {acm_version}
 
+== Base Environment
+
+This workshop was built on top of the https://catalog.demo.redhat.com/catalog?item=babylon-catalog-prod/published.ocp4-acm-demo.prod&utm_source=webapp&utm_medium=share-link[Advanced Cluster Management for Kubernetes Demo] from the Red Hat Demo Platform. Order this catalog item to get a pre-configured hub cluster with ACM already installed, then follow the modules below.
+
 == Prerequisites
 
-* A running OpenShift {ocp_version}+ cluster with RHACM {acm_version} installed
+* A running OpenShift {ocp_version}+ cluster with RHACM {acm_version} installed (see *Base Environment* above)
 * The `oc` CLI tool installed
 * The `kubectl` CLI tool installed
 * The `git` CLI tool installed

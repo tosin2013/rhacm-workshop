@@ -2,6 +2,8 @@
 
 In this exercise you will verify the Advanced Cluster Management for Kubernetes installation and provision managed clusters using Hive. This workshop targets **Red Hat Advanced Cluster Management 2.15** on **OpenShift 4.20**.
 
+> **Tip:** This workshop was built on top of the **[Advanced Cluster Management for Kubernetes Demo](https://catalog.demo.redhat.com/catalog?item=babylon-catalog-prod/published.ocp4-acm-demo.prod&utm_source=webapp&utm_medium=share-link)** from the Red Hat Demo Platform. Order this catalog item to get a pre-configured hub cluster with ACM already installed, then continue with the verification steps below.
+
 https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.15
 
 ## 1.1 Verify ACM Installation

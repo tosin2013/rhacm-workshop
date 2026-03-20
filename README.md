@@ -4,10 +4,14 @@ This document contains exercises and demonstrations for the Advanced Cluster Man
 
 **Target versions:** OpenShift 4.20 / RHACM 2.15
 
+## Base Environment
+
+This workshop was built on top of the **[Advanced Cluster Management for Kubernetes Demo](https://catalog.demo.redhat.com/catalog?item=babylon-catalog-prod/published.ocp4-acm-demo.prod&utm_source=webapp&utm_medium=share-link)** from the Red Hat Demo Platform. Order this catalog item to get a pre-configured hub cluster with ACM already installed, then follow the modules below.
+
 ## Prerequisites
 
 Participants in the workshop must have -
-* A running OpenShift 4.20+ cluster with RHACM 2.15 installed.
+* A running OpenShift 4.20+ cluster with RHACM 2.15 installed (see **Base Environment** above).
 * The `oc` CLI tool installed.
 * The `kubectl` CLI tool installed.
 * The `git` CLI tool installed.
