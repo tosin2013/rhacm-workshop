@@ -568,6 +568,10 @@ Apply the generated policies:
 
 Verify in the RHACM Governance dashboard that the generated policies appear and are compliant.
 
+After completing all sections of this module, the RHACM Governance dashboard should show all 13 policies:
+
+![RHACM Governance Dashboard — Module 06 Complete](images/governance-policies-dashboard.png)
+
 ### Advantages of Policy Generator
 
 - **Less YAML**: Source manifests are plain Kubernetes resources; the generator wraps them in ACM policy structures
