@@ -1,0 +1,21 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: PolicyGenerator
+metadata:
+  name: policy-generator-exercise
+placementBindingDefaults:
+  name: binding-policy-generator
+policyDefaults:
+  namespace: rhacm-policies
+  placement:
+    labelSelector:
+      matchLabels:
+        environment: production
+  remediationAction: enforce
+  severity: medium
+policies:
+  - name: policy-network-deny-default
+    manifests:
+      - path: manifests/deny-all-networkpolicy.yaml
+  - name: policy-resource-limits
+    manifests:
+      - path: manifests/limitrange.yaml
