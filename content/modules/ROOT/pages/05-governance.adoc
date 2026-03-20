@@ -451,6 +451,11 @@ As a result, you will have your own version of the repository - https://github.c
 ----
 
 
+[NOTE]
+====
+If you are already logged in as a non-kubeadmin user with cluster-admin privileges (e.g. `admin`), skip steps 4.a through 4.d entirely. In step 5 below, replace `workshop-admin` with your current username (run `oc whoami` to check). Do NOT run the `oc replace -f oauth.yaml` command if your cluster already has an identity provider configured -- it will overwrite your existing provider.
+====
+
 4.a. If you are using the kubeadmin user, create an identity provider by running the next commands (It is not possible to create policies via GitOps using the kubeadmin user). The identity provider will create the `workshop-admin` user -
 
 [TIP]
