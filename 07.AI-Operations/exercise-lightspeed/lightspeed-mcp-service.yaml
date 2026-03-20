@@ -1,0 +1,20 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lightspeed-mcp-server
+  namespace: openshift-lightspeed
+  labels:
+    app.kubernetes.io/component: mcp-server
+    app.kubernetes.io/part-of: openshift-lightspeed
+spec:
+  selector:
+    app.kubernetes.io/component: application-server
+    app.kubernetes.io/managed-by: lightspeed-operator
+    app.kubernetes.io/name: lightspeed-service-api
+    app.kubernetes.io/part-of: openshift-lightspeed
+  ports:
+    - name: mcp
+      port: 8080
+      targetPort: 8080
+      protocol: TCP

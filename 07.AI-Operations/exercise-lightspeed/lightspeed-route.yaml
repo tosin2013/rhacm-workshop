@@ -7,11 +7,11 @@ metadata:
 spec:
   to:
     kind: Service
-    name: lightspeed-app-server
+    name: lightspeed-mcp-server
     weight: 100
   port:
-    targetPort: https
+    targetPort: mcp
   tls:
-    termination: reencrypt
+    termination: edge
     insecureEdgeTerminationPolicy: Redirect
   wildcardPolicy: None
