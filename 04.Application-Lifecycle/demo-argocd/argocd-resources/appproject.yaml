@@ -9,7 +9,7 @@ spec:
     kind: '*'
   destinations:
   - namespace: '*'
-    name: pacman
+    name: local-cluster
     server: '*'
   sourceRepos:
   - '*'

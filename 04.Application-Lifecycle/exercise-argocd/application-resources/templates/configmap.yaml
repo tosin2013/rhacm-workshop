@@ -4,5 +4,5 @@ data:
     {{ .Values.application.content }}
 kind: ConfigMap
 metadata:
-  name: application-prod
+  name: application-content
   namespace: {{ .Values.namespace }}

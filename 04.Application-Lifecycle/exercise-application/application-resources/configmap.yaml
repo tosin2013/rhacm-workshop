@@ -1,7 +1,6 @@
 apiVersion: v1
 data:
-  application.html: |
-    <h1>Production Application</h1>
+  application.html: "<!DOCTYPE html><html><head><title>Production Environment</title><style>body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:linear-gradient(135deg,#1a1a2e,#16213e);color:#edf2f4}div{text-align:center;padding:40px 60px;border:2px solid#e63946;border-radius:12px;background:rgba(230,57,70,0.08)}.badge{display:inline-block;padding:6px 18px;border-radius:20px;background:#e63946;color:#fff;font-weight:bold;font-size:14px;margin-bottom:20px}h1{font-size:2.5em;margin:10px 0}p{color:#a8dadc;font-size:1.1em}</style></head><body><div><span class='badge'>PRODUCTION</span><h1>WebServer Application</h1><p>Environment: production &bull; Managed by RHACM + ArgoCD</p></div></body></html>"
 kind: ConfigMap
 metadata:
-  name: application-prod
+  name: application-content
