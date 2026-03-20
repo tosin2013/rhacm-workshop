@@ -1,0 +1,32 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: ai-gpu-flask
+  namespace: openshift-gitops
+spec:
+  generators:
+    - clusterDecisionResource:
+        configMapRef: acm-placement
+        labelSelector:
+          matchLabels:
+            cluster.open-cluster-management.io/placement: gpu-clusters
+        requeueAfterSeconds: 180
+  template:
+    metadata:
+      name: ai-gpu-flask-{{name}}
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/tosin2013/rhacm-workshop.git
+        targetRevision: master
+        path: 07.AI-Operations/exercise-placement/manifests
+      destination:
+        name: "{{name}}"
+        namespace: ai-inference
+      syncPolicy:
+        automated:
+          selfHeal: true
+          prune: true
+        syncOptions:
+          - CreateNamespace=true

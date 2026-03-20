@@ -1,0 +1,44 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-gpu-flask
+  namespace: ai-inference
+  labels:
+    app: ai-gpu-flask
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-gpu-flask
+  template:
+    metadata:
+      labels:
+        app: ai-gpu-flask
+    spec:
+      containers:
+        - name: ai-gpu-flask
+          image: image-registry.openshift-image-registry.svc:5000/ai-inference/ai-gpu-flask:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+              nvidia.com/gpu: "1"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 30

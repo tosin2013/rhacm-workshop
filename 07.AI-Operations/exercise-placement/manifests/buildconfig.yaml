@@ -1,0 +1,22 @@
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: ai-gpu-flask
+  namespace: ai-inference
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/tosin2013/rhacm-workshop.git
+      ref: master
+    contextDir: 07.AI-Operations/exercise-placement/app
+  strategy:
+    type: Docker
+    dockerStrategy: {}
+  output:
+    to:
+      kind: ImageStreamTag
+      name: ai-gpu-flask:latest
+  triggers:
+    - type: ConfigChange

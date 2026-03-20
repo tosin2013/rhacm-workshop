@@ -1,0 +1,16 @@
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: ai-gpu-flask
+  namespace: ai-inference
+spec:
+  to:
+    kind: Service
+    name: ai-gpu-flask
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
