@@ -111,6 +111,14 @@ The ApplicationSet automatically:
 3. Deploys all manifests (namespace, buildconfig, deployment, service, route)
 4. The BuildConfig triggers a build on gpu-cluster from the git source
 
+In the ArgoCD console, you should see the `ai-gpu-flask-gpu-cluster` application alongside any existing applications:
+
+![ArgoCD Applications Overview](images/argocd-applications-overview.png)
+
+Drilling into the application shows the full resource tree -- namespace, deployment, build, service, and route all healthy:
+
+![ArgoCD Application Detail Tree](images/argocd-app-detail-tree.png)
+
 ### Step 6 - Test Placement Behavior
 
 Patch the Placement to require `gpu-count >= 2`:
