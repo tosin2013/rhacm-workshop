@@ -2,20 +2,45 @@
 
 include::partial$_attributes.adoc[]
 
-This module introduces AI-powered multicluster operations with Red Hat Advanced Cluster Management. You will place AI workloads on GPU-capable clusters using the Placement API and interact with your fleet using natural language through the Kubernetes MCP Server and OpenShift Lightspeed.
+This module introduces AI-powered multicluster operations with Red Hat Advanced Cluster Management. You will:
+
+* Deploy an AI inference workload to GPU-capable clusters using ArgoCD ApplicationSets and the Placement API
+* Wire the OpenShift Lightspeed MCP Server into the OLS pipeline so the Lightspeed console returns live cluster data instead of hallucinated answers
 
 *Prerequisites:*
+
 * Completed Module 01 (clusters provisioned and GPU Operator installed on gpu-cluster)
 * The gpu-cluster has the label `gpu=true` and the NVIDIA GPU Operator installed
-* OpenShift Lightspeed is installed on the hub cluster (optional, for exercise 7B)
+* OpenShift GitOps (ArgoCD) is installed on the hub cluster
+* OpenShift Lightspeed is installed on the hub cluster
 
-== 7A - AI Workload Placement on GPU Cluster
+'''
 
-In this exercise, you will deploy an AI inference workload and use ACM's Placement API with prioritizers to route it to the GPU-enabled cluster.
+== 7A - AI Workload Placement via ApplicationSet
 
-=== Step 1 - Verify GPU Cluster Readiness
+In this exercise, you will build a Flask-based GPU inference app from source on the target cluster using an OpenShift BuildConfig, and deploy it via an ArgoCD ApplicationSet that uses ACM's Placement API to route workloads to GPU-enabled clusters.
 
-Confirm the gpu-cluster is available and the NVIDIA GPU Operator is functioning:
+=== Step 1 - Apply the GPU Operator Policy
+
+If not already applied during Module 01, install the NVIDIA GPU Operator on all `gpu=true` clusters:
+
+[source,bash]
+----
+<hub> $ oc apply -f 01.RHACM-Installation/cluster-provisioning/gpu-operator-policy.yaml
+----
+
+Verify it becomes Compliant:
+
+[source,bash]
+----
+<hub> $ oc get policy policy-nvidia-gpu-operator -n rhacm-policies
+NAME                         REMEDIATION ACTION   COMPLIANCE STATE   AGE
+policy-nvidia-gpu-operator   enforce              Compliant          ...
+----
+
+=== Step 2 - Verify GPU Cluster Readiness
+
+Confirm the gpu-cluster is available:
 
 [source,bash]
 ----
@@ -24,71 +49,101 @@ NAME          HUB ACCEPTED   MANAGED CLUSTER URLS   JOINED   AVAILABLE   AGE
 gpu-cluster   true           https://...            True     True        ...
 ----
 
-Check the GPU Operator policy compliance:
+=== Step 3 - Register gpu-cluster in ArgoCD
+
+The gpu-cluster lives in the `default` ManagedClusterSet but is not registered in ArgoCD by default. Apply the hub resources to register it:
 
 [source,bash]
 ----
-<hub> $ oc get policy policy-nvidia-gpu-operator -n rhacm-policies
-NAME                          REMEDIATION ACTION   COMPLIANCE STATE   AGE
-policy-nvidia-gpu-operator    enforce              Compliant          ...
+<hub> $ oc apply -f 07.AI-Operations/exercise-placement/hub/managedclustersetbinding.yaml
+<hub> $ oc apply -f 07.AI-Operations/exercise-placement/hub/placement.yaml
+<hub> $ oc apply -f 07.AI-Operations/exercise-placement/hub/gitopscluster.yaml
 ----
 
-On the gpu-cluster, verify the GPU node advertises `nvidia.com/gpu` resources:
+This creates:
+
+* A *ManagedClusterSetBinding* that makes the `default` ClusterSet available in the `openshift-gitops` namespace
+* A *Placement* (`gpu-clusters`) that selects clusters with `gpu=true` and scores them by CPU and memory
+* A *GitOpsCluster* that registers matched clusters in ArgoCD
+
+Verify gpu-cluster appears as an ArgoCD cluster:
 
 [source,bash]
 ----
-<gpu-cluster> $ oc get node -o json | jq '.items[0].status.capacity | {cpu, memory, "nvidia.com/gpu"}'
-{
-  "cpu": "16",
-  "memory": "65536Mi",
-  "nvidia.com/gpu": "1"
-}
+<hub> $ oc get secret -n openshift-gitops -l apps.open-cluster-management.io/acm-cluster
+NAME                                               TYPE     DATA   AGE
+gpu-cluster-application-manager-cluster-secret     Opaque   3      ...
+local-cluster-application-manager-cluster-secret   Opaque   3      ...
 ----
 
-=== Step 2 - Create the AI Inference Workload
-
-We will deploy a lightweight ONNX Runtime model server that serves a simple image classification model. This workload requests GPU resources when available.
-
-Apply the workload resources:
+Check the PlacementDecision selected gpu-cluster:
 
 [source,bash]
 ----
-<hub> $ oc apply -f 07.AI-Operations/exercise-placement/ai-workload-namespace.yaml
-<hub> $ oc apply -f 07.AI-Operations/exercise-placement/ai-workload-placement.yaml
-<hub> $ oc apply -f 07.AI-Operations/exercise-placement/ai-workload-app.yaml
-----
-
-=== Step 3 - Examine the Placement with GPU Prioritizer
-
-Review the Placement resource:
-
-[source,bash]
-----
-<hub> $ oc get placement ai-workload-placement -n ai-workload -o yaml
-----
-
-The key elements are:
-* *`predicates`*: Requires clusters with `gpu=true` label
-* *`prioritizerPolicy`*: Scores clusters by available GPU resources
-* *`numberOfClusters: 1`*: Selects the single best cluster
-
-Check the PlacementDecision:
-
-[source,bash]
-----
-<hub> $ oc get placementdecision -n ai-workload -l cluster.open-cluster-management.io/placement=ai-workload-placement -o jsonpath='{.items[0].status.decisions[*].clusterName}'
+<hub> $ oc get placementdecision -n openshift-gitops -l cluster.open-cluster-management.io/placement=gpu-clusters \
+    -o jsonpath='{.items[0].status.decisions[*].clusterName}'
 gpu-cluster
 ----
 
-The workload is routed to `gpu-cluster` because it is the only cluster matching the `gpu=true` label and has the highest GPU resource score.
+=== Step 4 - Review the AI Inference App
 
-=== Step 4 - Test Placement Behavior
+The app source code lives in `07.AI-Operations/exercise-placement/app/`:
 
-Modify the Placement to require `gpu-count >= 2` and observe the behavior:
+[cols="1,3",options="header"]
+|===
+| File | Purpose
+| `app.py` | Flask app with `/health`, `/gpu` (runs nvidia-smi), `/predict` (matrix multiply), `/info`
+| `requirements.txt` | flask, numpy, gunicorn
+| `Dockerfile` | Based on UBI9 Python 3.11
+|===
+
+The Kubernetes manifests in `07.AI-Operations/exercise-placement/manifests/` include:
+
+* *BuildConfig*: Builds the image from the git repo directly on the target cluster
+* *ImageStream*: Stores the built image
+* *Deployment*: Runs the app requesting `nvidia.com/gpu: "1"`
+* *Service* and *Route*: Expose the app externally
+
+=== Step 5 - Deploy via ApplicationSet
+
+Apply the ApplicationSet that uses the `clusterDecisionResource` generator to read from the gpu-clusters PlacementDecision:
 
 [source,bash]
 ----
-<hub> $ oc patch placement ai-workload-placement -n ai-workload --type=merge -p '
+<hub> $ oc apply -f 07.AI-Operations/exercise-placement/hub/applicationset.yaml
+----
+
+Verify the Application was created and is syncing:
+
+[source,bash]
+----
+<hub> $ oc get application.argoproj.io -n openshift-gitops
+NAME                       SYNC STATUS   HEALTH STATUS
+ai-gpu-flask-gpu-cluster   Synced        Healthy
+----
+
+The ApplicationSet automatically:
+
+. Reads the PlacementDecision to find gpu-cluster
+. Creates an ArgoCD Application targeting gpu-cluster
+. Deploys all manifests (namespace, buildconfig, deployment, service, route)
+. The BuildConfig triggers a build on gpu-cluster from the git source
+
+In the ArgoCD console, you should see the `ai-gpu-flask-gpu-cluster` application alongside any existing applications:
+
+image::argocd-applications-overview.png[ArgoCD Applications Overview]
+
+Drilling into the application shows the full resource tree -- namespace, deployment, build, service, and route all healthy:
+
+image::argocd-app-detail-tree.png[ArgoCD Application Detail Tree]
+
+=== Step 6 - Test Placement Behavior
+
+Patch the Placement to require `gpu-count >= 2`:
+
+[source,bash]
+----
+<hub> $ oc patch placement gpu-clusters -n openshift-gitops --type=merge -p '
 spec:
   predicates:
     - requiredClusterSelector:
@@ -104,57 +159,247 @@ spec:
 '
 ----
 
-Check the PlacementDecision again:
+Check the PlacementDecision:
 
 [source,bash]
 ----
-<hub> $ oc get placementdecision -n ai-workload -l cluster.open-cluster-management.io/placement=ai-workload-placement -o jsonpath='{.items[0].status.decisions}'
+<hub> $ oc get placementdecision -n openshift-gitops -l cluster.open-cluster-management.io/placement=gpu-clusters \
+    -o jsonpath='{.items[0].status.decisions}'
 []
 ----
 
-No cluster matches because no cluster has `gpu-count >= 2`. This demonstrates how ACM prevents workload misplacement.
+No cluster matches because no cluster has `gpu-count >= 2`. The ApplicationSet controller will remove the Application on its next reconcile cycle. This demonstrates how ACM prevents workload misplacement.
 
 Revert to the original Placement:
 
 [source,bash]
 ----
-<hub> $ oc apply -f 07.AI-Operations/exercise-placement/ai-workload-placement.yaml
+<hub> $ oc apply -f 07.AI-Operations/exercise-placement/hub/placement.yaml
 ----
 
-=== Step 5 - Cleanup
+=== Step 7 - Cleanup
 
 [source,bash]
 ----
-<hub> $ oc delete -f 07.AI-Operations/exercise-placement/ai-workload-app.yaml
-<hub> $ oc delete -f 07.AI-Operations/exercise-placement/ai-workload-placement.yaml
-<hub> $ oc delete -f 07.AI-Operations/exercise-placement/ai-workload-namespace.yaml
+<hub> $ oc delete -f 07.AI-Operations/exercise-placement/hub/applicationset.yaml
+<hub> $ oc delete -f 07.AI-Operations/exercise-placement/hub/gitopscluster.yaml
+<hub> $ oc delete -f 07.AI-Operations/exercise-placement/hub/placement.yaml
+<hub> $ oc delete -f 07.AI-Operations/exercise-placement/hub/managedclustersetbinding.yaml
 ----
 
 '''
 
-== 7B - Kubernetes MCP Server + OpenShift Lightspeed
+== 7B - Wiring OpenShift Lightspeed to the MCP Server
 
-In this exercise, you will set up the Kubernetes MCP Server to enable AI assistants (Cursor, VS Code) to query your RHACM fleet using natural language.
+OpenShift Lightspeed includes a built-in *Kubernetes MCP Server* (`openshift-mcp-server`) that runs as a sidecar container in the `lightspeed-app-server` pod. This server implements the https://modelcontextprotocol.io/[Model Context Protocol] and provides 14 read-only tools for querying live cluster resources.
 
-=== Step 1 - Create a Service Account for the MCP Server
+Out of the box, the sidecar is *deployed* but *not wired* to the OLS API. The Lightspeed console sends questions to the LLM (GPT-4) which answers from documentation only -- it has no access to real cluster data and will hallucinate cluster names.
 
-Create a dedicated namespace and service account with read-only cluster access:
+In this exercise you will wire the MCP server into the OLS pipeline so the Lightspeed console returns accurate, live data from your RHACM fleet.
+
+=== Step 1 - Observe the Problem (Before)
+
+Open the Lightspeed console in the OpenShift web UI and ask:
+
+____
+*Show me all managed clusters and their status*
+____
+
+Without the MCP server wired in, the LLM pulls from Red Hat documentation examples and returns fabricated cluster names like "spoke1" and "spoke4":
+
+image::lightspeed-before-mcp.png[Lightspeed before MCP -- hallucinated cluster names]
+
+This happens because:
+
+* The `openshift-mcp-server` sidecar is running on port 8080
+* But the OLS API (port 8443) is not configured to connect to it
+* The LLM answers from documentation RAG context only
+
+=== Architecture
+
+[source]
+----
+┌──────────────────────────────────────────────────────────────┐
+│  lightspeed-app-server Pod                                   │
+│                                                              │
+│  ┌─────────────────────┐      ┌──────────────────────────┐   │
+│  │ lightspeed-service-  │      │ openshift-mcp-server     │   │
+│  │ api         :8443    │─────▶│                  :8080    │   │
+│  │                      │ SSE  │  /sse  /mcp  /healthz    │   │
+│  └──────────┬──────────┘      └─────────────┬────────────┘   │
+│             │                                │               │
+└─────────────┼────────────────────────────────┼───────────────┘
+              │                                │ uses SA token
+              ▼                                ▼
+         GPT-4 (Azure)                  Kubernetes API
+              │                                │
+              │  tool_calls ──────────▶ ManagedClusters
+              │  tool_results ◀─────── Policies, Pods,
+              │                        PlacementDecisions...
+              ▼
+     Response with real data
+----
+
+Three `OLSConfig` settings connect these components:
+
+[cols="1,2",options="header"]
+|===
+| Setting | Purpose
+| `spec.featureGates: ["MCPServer"]` | Enables the MCP feature (disabled by default)
+| `spec.mcpServers[].url` | Tells the OLS API where the MCP server lives
+| `spec.ols.toolsApprovalConfig` | Lets the LLM invoke MCP tools automatically
+|===
+
+=== Step 2 - Grant RBAC for RHACM Resource Access
+
+The MCP server sidecar uses the `lightspeed-app-server` ServiceAccount, which by default only has permissions for token reviews. It needs `cluster-reader` to query RHACM resources:
+
+[source,bash]
+----
+<hub> $ oc apply -f 07.AI-Operations/exercise-lightspeed/lightspeed-mcp-rbac.yaml
+----
+
+This creates a ClusterRoleBinding granting `cluster-reader` to the `lightspeed-app-server` SA in the `openshift-lightspeed` namespace.
+
+=== Step 3 - Wire the MCP Server to OLS
+
+This is the key step. Patch the `OLSConfig` to enable the feature gate, register the MCP server URL, and allow automatic tool execution:
+
+[source,bash]
+----
+<hub> $ oc patch olsconfig cluster --type=merge -p '{
+  "spec": {
+    "featureGates": ["MCPServer"],
+    "mcpServers": [
+      {
+        "name": "openshift-mcp-server",
+        "url": "http://localhost:8080/sse",
+        "timeout": 30
+      }
+    ],
+    "ols": {
+      "toolsApprovalConfig": {
+        "approvalType": "never"
+      }
+    }
+  }
+}'
+----
+
+What each field does:
+
+* *`featureGates: ["MCPServer"]`* -- Enables the MCP feature in the OLS backend. Without this, the LLM never receives the MCP tools.
+* *`mcpServers[0].url: "http://localhost:8080/sse"`* -- Points the OLS API to the MCP sidecar. Since both containers share the same pod, `localhost:8080` works. The `/sse` endpoint provides Server-Sent Events transport.
+* *`toolsApprovalConfig.approvalType: "never"`* -- Lets the LLM call MCP tools (like `resources_list`, `pods_list`) automatically without requiring per-call user approval.
+
+The YAML version of this patch is in `07.AI-Operations/exercise-lightspeed/olsconfig-mcp-patch.yaml`.
+
+Wait for the operator to roll out the new pod:
+
+[source,bash]
+----
+<hub> $ oc rollout status deployment/lightspeed-app-server -n openshift-lightspeed --timeout=120s
+<hub> $ oc get olsconfig cluster -o jsonpath='{.status.overallStatus}'
+Ready
+----
+
+=== Step 4 - Verify the Fix (After)
+
+Go back to the Lightspeed console and ask the same question:
+
+____
+*Use the resources_list tool with apiVersion cluster.open-cluster-management.io/v1 and kind ManagedCluster to show me all managed clusters on this hub*
+____
+
+The response now includes the *real* managed clusters with live data:
+
+* *gpu-cluster* -- Available, labels: `gpu=true`, `accelerator=nvidia-l4`
+* *local-cluster* -- Available, labels: `environment=hub`
+* *standard-cluster* -- Available, labels: `environment=production`
+
+image::lightspeed-after-mcp.png[Lightspeed after MCP -- real cluster data]
+
+You can verify the tool was invoked by checking the OLS API logs:
+
+[source,bash]
+----
+<hub> $ oc logs -n openshift-lightspeed -l app.kubernetes.io/component=application-server \
+    -c lightspeed-service-api --tail=20 | grep -i "tool"
+----
+
+=== Step 5 - Expose the MCP Server Externally
+
+The internal wiring is done. To also allow external MCP clients (IDEs, CLI tools) to connect, create a dedicated Service and Route for the MCP endpoint:
+
+[source,bash]
+----
+<hub> $ oc apply -f 07.AI-Operations/exercise-lightspeed/lightspeed-mcp-service.yaml
+<hub> $ oc apply -f 07.AI-Operations/exercise-lightspeed/lightspeed-route.yaml
+----
+
+Get the external MCP endpoint:
+
+[source,bash]
+----
+<hub> $ export MCP_URL=$(oc get route lightspeed-mcp -n openshift-lightspeed -o jsonpath='{.spec.host}')
+<hub> $ echo "MCP endpoint: https://${MCP_URL}"
+----
+
+=== Step 6 - Verify via MCP Endpoint
+
+Test the health endpoint:
+
+[source,bash]
+----
+<hub> $ curl -sk https://${MCP_URL}/healthz
+<hub> $ curl -sk https://${MCP_URL}/stats
+----
+
+Test a full MCP session querying managed clusters:
+
+[source,bash]
+----
+<hub> $ SESSION_ID=$(curl -sk -D - -X POST https://${MCP_URL}/mcp \
+    -H "Content-Type: application/json" \
+    -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' \
+    | grep -i "mcp-session-id" | tr -d "\r" | awk '{print $2}')
+
+<hub> $ curl -sk -X POST https://${MCP_URL}/mcp \
+    -H "Content-Type: application/json" \
+    -H "Mcp-Session-Id: $SESSION_ID" \
+    -d '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+
+<hub> $ curl -sk -X POST https://${MCP_URL}/mcp \
+    -H "Content-Type: application/json" \
+    -H "Mcp-Session-Id: $SESSION_ID" \
+    -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"resources_list","arguments":{"apiVersion":"cluster.open-cluster-management.io/v1","kind":"ManagedCluster"}}}'
+----
+
+You should see all three managed clusters (gpu-cluster, local-cluster, standard-cluster) returned with their labels and status.
+
+=== Step 7 - Connect Your IDE
+
+For *Cursor*, add to `.cursor/mcp.json`:
+
+[source,json]
+----
+{
+  "mcpServers": {
+    "openshift-mcp": {
+      "url": "https://<your-lightspeed-mcp-route>/sse"
+    }
+  }
+}
+----
+
+For a *local Kubernetes MCP server* (alternative approach using npx), first create a service account and kubeconfig:
 
 [source,bash]
 ----
 <hub> $ oc apply -f 07.AI-Operations/exercise-mcp/mcp-serviceaccount.yaml
-----
-
-=== Step 2 - Generate a Kubeconfig for the MCP Server
-
-Mint a short-lived token and build a kubeconfig:
-
-[source,bash]
-----
 <hub> $ export MCP_TOKEN=$(oc create token mcp-viewer -n mcp --duration=2h)
 <hub> $ export API_SERVER=$(oc whoami --show-server)
-<hub> $ export CA_DATA=$(oc get secret -n mcp -o jsonpath='{.items[0].data.ca\.crt}' 2>/dev/null || oc config view --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}')
-
+<hub> $ export CA_DATA=$(oc get configmap kube-root-ca.crt -n mcp -o jsonpath='{.data.ca\.crt}' | base64 -w0)
 <hub> $ cat > /tmp/mcp-kubeconfig.yaml << EOF
 apiVersion: v1
 kind: Config
@@ -176,69 +421,7 @@ users:
 EOF
 ----
 
-=== Step 3 - Configure MCP in Your IDE
-
-Add the Kubernetes MCP Server to your IDE's MCP configuration.
-
-For *Cursor*, add to `.cursor/mcp.json`:
-
-[source,json]
-----
-{
-  "mcpServers": {
-    "kubernetes": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "kubernetes-mcp-server@latest",
-        "--kubeconfig", "/tmp/mcp-kubeconfig.yaml",
-        "--read-only"
-      ]
-    }
-  }
-}
-----
-
-For *VS Code*, add to your settings or MCP config with the same command.
-
-=== Step 4 - Query Your Fleet with Natural Language
-
-Once configured, you can ask your AI assistant questions about the RHACM fleet:
-
-* "Show me all managed clusters and their status"
-* "List all pods in the open-cluster-management namespace"
-* "What policies are non-compliant across my fleet?"
-* "Show me the GPU node capacity on gpu-cluster"
-* "Get events from the nvidia-gpu-operator namespace on gpu-cluster"
-* "What PlacementDecisions exist and which clusters are they targeting?"
-
-=== Step 5 - OpenShift Lightspeed MCP Integration (Advanced, Optional)
-
-If OpenShift Lightspeed is installed on your hub cluster, you can also connect its MCP interface for OpenShift-specific knowledge.
-
-Expose the Lightspeed service:
-
-[source,bash]
-----
-<hub> $ oc apply -f 07.AI-Operations/exercise-lightspeed/lightspeed-route.yaml
-----
-
-Get the Lightspeed endpoint:
-
-[source,bash]
-----
-<hub> $ export OLS_URL=$(oc get route lightspeed-mcp -n openshift-lightspeed -o jsonpath='{.spec.host}')
-<hub> $ echo "Lightspeed MCP endpoint: https://${OLS_URL}"
-----
-
-Clone and configure the OLS MCP server:
-
-[source,bash]
-----
-<hub> $ git clone https://github.com/thoraxe/ols-mcp.git /tmp/ols-mcp
-----
-
-Add to your Cursor `.cursor/mcp.json` alongside the Kubernetes MCP server:
+Then add to `.cursor/mcp.json`:
 
 [source,json]
 ----
@@ -247,22 +430,59 @@ Add to your Cursor `.cursor/mcp.json` alongside the Kubernetes MCP server:
     "kubernetes": {
       "command": "npx",
       "args": ["-y", "kubernetes-mcp-server@latest", "--kubeconfig", "/tmp/mcp-kubeconfig.yaml", "--read-only"]
-    },
-    "openshift-lightspeed": {
-      "command": "python",
-      "args": ["/tmp/ols-mcp/server.py"],
-      "env": {
-        "OLS_URL": "https://<your-lightspeed-route>"
-      }
     }
   }
 }
 ----
 
-Now you can ask questions that combine live cluster data with OpenShift documentation knowledge:
+=== Step 8 - Query Your Fleet
 
-* "Based on the current cluster state, what security policies should I add?"
-* "How do I configure the GPU operator for multi-instance GPU on my gpu-cluster?"
-* "What's the recommended way to set up network policies for my namespaces?"
+Once connected, you can ask your AI assistant questions about the RHACM fleet. The LLM does not know RHACM API versions by default, so include the `apiVersion` and `kind` in your questions for reliable results.
 
-For more details, see https://developers.redhat.com/articles/2026/02/04/how-connect-openshift-lightspeed-mcp-your-ide[How to Connect OpenShift Lightspeed MCP to Your IDE].
+*RHACM Fleet Management:*
+
+* "Use the resources_list tool with apiVersion cluster.open-cluster-management.io/v1 and kind ManagedCluster to show me all managed clusters on this hub"
+* "Use the resources_get tool with apiVersion cluster.open-cluster-management.io/v1, kind ManagedCluster, and name gpu-cluster to show its labels and capacity"
+* "Use the resources_list tool with apiVersion policy.open-cluster-management.io/v1 and kind Policy to list all governance policies and their compliance state"
+* "Use the resources_list tool with apiVersion cluster.open-cluster-management.io/v1beta1 and kind Placement to show all Placement resources"
+
+*Cluster Operations:*
+
+* "Use the nodes_top tool to show CPU and memory usage for all nodes"
+* "Use the pods_top tool to show the top resource-consuming pods across all namespaces"
+* "Use the pods_list_in_namespace tool to list all pods in the open-cluster-management namespace"
+* "Use the events_list tool to show any recent warning events"
+
+*RHACM API Version Cheat Sheet:*
+
+[cols="1,2,1",options="header"]
+|===
+| Resource | apiVersion | kind
+| Managed Clusters | `cluster.open-cluster-management.io/v1` | `ManagedCluster`
+| Policies | `policy.open-cluster-management.io/v1` | `Policy`
+| Placements | `cluster.open-cluster-management.io/v1beta1` | `Placement`
+| PlacementDecisions | `cluster.open-cluster-management.io/v1beta1` | `PlacementDecision`
+| ManagedClusterSets | `cluster.open-cluster-management.io/v1beta2` | `ManagedClusterSet`
+|===
+
+=== Cleanup
+
+To revert the OLSConfig patch:
+
+[source,bash]
+----
+<hub> $ oc patch olsconfig cluster --type=json -p '[
+  {"op":"remove","path":"/spec/featureGates"},
+  {"op":"remove","path":"/spec/mcpServers"},
+  {"op":"remove","path":"/spec/ols/toolsApprovalConfig"}
+]'
+----
+
+To remove the external route, service, and RBAC:
+
+[source,bash]
+----
+<hub> $ oc delete -f 07.AI-Operations/exercise-lightspeed/lightspeed-route.yaml
+<hub> $ oc delete -f 07.AI-Operations/exercise-lightspeed/lightspeed-mcp-service.yaml
+<hub> $ oc delete -f 07.AI-Operations/exercise-lightspeed/lightspeed-mcp-rbac.yaml
+----
