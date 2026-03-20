@@ -180,6 +180,8 @@ spec:
                     enabled: true
                   dcgmExporter:
                     enabled: true
+                    serviceMonitor:
+                      enabled: true
                   devicePlugin:
                     enabled: true
                   gfd:

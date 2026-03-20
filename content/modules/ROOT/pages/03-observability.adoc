@@ -263,6 +263,10 @@ Import it into the Grafana Dev instance:
 
 The dashboard includes 8 panels: GPU Temperature, Avg Temp gauge, Power Usage, Power Total gauge, GPU Utilization, Memory Utilization, Framebuffer Memory Used, and SM Clocks. Use the *Cluster* dropdown at the top to filter by your gpu-cluster.
 
+image::gpu-dashboard.png[gpu-dashboard]
+
+NOTE: The GPU Operator policy (`gpu-operator-policy.yaml`) includes `serviceMonitor.enabled: true` for `dcgmExporter`, which tells the GPU Operator to create a ServiceMonitor so that Prometheus on the managed cluster scrapes the DCGM exporter metrics. Without this, the DCGM metrics will not appear in ACM Observability.
+
 ==== Export the GPU dashboard using the script
 
 Now use the export script to generate a ConfigMap YAML from the imported dashboard:
