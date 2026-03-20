@@ -139,11 +139,19 @@ To create the ApplicationSet resource run the next commands -
 <hub> $ oc apply -f https://raw.githubusercontent.com/tosin2013/rhacm-workshop/master/04.Application-Lifecycle/exercise-argocd/argocd-resources/applicationset.yaml
 ----
 
-Note that two application instances have been created in the ArgoCD UI -
+Note that two application instances have been created. In the RHACM portal, navigate to *Applications* -> *webserver* to see the ApplicationSet topology:
 
-image::argocd-applications.png[argocd-applications]
+image::rhacm-appset-topology.png[RHACM ApplicationSet Topology]
 
-Make sure that the application is available by navigating to its Route resource.
+In the ArgoCD UI, you can inspect each application individually. The *webserver-development* application shows all resources synced and healthy:
+
+image::argocd-webserver-development.png[ArgoCD webserver-development application]
+
+The *webserver-production* application mirrors the same structure in its own namespace:
+
+image::argocd-webserver-production.png[ArgoCD webserver-production application]
+
+Make sure that the applications are available by navigating to their Route resources.
 
 [source,bash]
 ----
