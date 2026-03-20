@@ -284,8 +284,7 @@ The response now includes the **real** managed clusters with live data:
 - **local-cluster** -- Available, labels: `environment=hub`
 - **standard-cluster** -- Available, labels: `environment=production`
 
-<!-- TODO: replace with actual after-screenshot once captured -->
-<!-- ![Lightspeed after MCP -- real cluster data](images/lightspeed-after-mcp.png) -->
+![Lightspeed after MCP -- real cluster data](images/lightspeed-after-mcp.png)
 
 You can verify the tool was invoked by checking the OLS API logs:
 
@@ -397,13 +396,31 @@ Then add to `.cursor/mcp.json`:
 
 ### Step 8 - Query Your Fleet
 
-Once connected, you can ask your AI assistant questions about the RHACM fleet:
+Once connected, you can ask your AI assistant questions about the RHACM fleet. The LLM does not know RHACM API versions by default, so include the `apiVersion` and `kind` in your questions for reliable results.
 
-- "Use resources_list with apiVersion cluster.open-cluster-management.io/v1 and kind ManagedCluster to show all clusters"
-- "List all pods in the open-cluster-management namespace"
-- "What policies exist in the rhacm-policies namespace?"
-- "Show me the GPU node capacity on gpu-cluster"
-- "What PlacementDecisions exist and which clusters are they targeting?"
+**RHACM Fleet Management:**
+
+- "Use the resources_list tool with apiVersion cluster.open-cluster-management.io/v1 and kind ManagedCluster to show me all managed clusters on this hub"
+- "Use the resources_get tool with apiVersion cluster.open-cluster-management.io/v1, kind ManagedCluster, and name gpu-cluster to show its labels and capacity"
+- "Use the resources_list tool with apiVersion policy.open-cluster-management.io/v1 and kind Policy to list all governance policies and their compliance state"
+- "Use the resources_list tool with apiVersion cluster.open-cluster-management.io/v1beta1 and kind Placement to show all Placement resources"
+
+**Cluster Operations:**
+
+- "Use the nodes_top tool to show CPU and memory usage for all nodes"
+- "Use the pods_top tool to show the top resource-consuming pods across all namespaces"
+- "Use the pods_list_in_namespace tool to list all pods in the open-cluster-management namespace"
+- "Use the events_list tool to show any recent warning events"
+
+**RHACM API Version Cheat Sheet:**
+
+| Resource | apiVersion | kind |
+|----------|-----------|------|
+| Managed Clusters | `cluster.open-cluster-management.io/v1` | `ManagedCluster` |
+| Policies | `policy.open-cluster-management.io/v1` | `Policy` |
+| Placements | `cluster.open-cluster-management.io/v1beta1` | `Placement` |
+| PlacementDecisions | `cluster.open-cluster-management.io/v1beta1` | `PlacementDecision` |
+| ManagedClusterSets | `cluster.open-cluster-management.io/v1beta2` | `ManagedClusterSet` |
 
 ### Cleanup
 
