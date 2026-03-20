@@ -3,7 +3,7 @@
 This module introduces AI-powered multicluster operations with Red Hat Advanced Cluster Management. You will:
 
 - Deploy an AI inference workload to GPU-capable clusters using ArgoCD ApplicationSets and the Placement API
-- Enable the OpenShift Lightspeed MCP Server to query your RHACM fleet via the MCP protocol
+- Wire the OpenShift Lightspeed MCP Server into the OLS pipeline so the Lightspeed console returns live cluster data instead of hallucinated answers
 
 **Prerequisites:**
 - Completed Module 01 (clusters provisioned and GPU Operator installed on gpu-cluster)
@@ -167,66 +167,150 @@ Revert to the original Placement:
 
 ---
 
-## 7B - OpenShift Lightspeed MCP Server
+## 7B - Wiring OpenShift Lightspeed to the MCP Server
 
-OpenShift Lightspeed includes a built-in **Kubernetes MCP Server** (`openshift-mcp-server`) that runs as a sidecar container in the `lightspeed-app-server` pod. This server implements the [Model Context Protocol](https://modelcontextprotocol.io/) and provides 14 read-only tools for querying cluster resources via any MCP-compatible AI client.
+OpenShift Lightspeed includes a built-in **Kubernetes MCP Server** (`openshift-mcp-server`) that runs as a sidecar container in the `lightspeed-app-server` pod. This server implements the [Model Context Protocol](https://modelcontextprotocol.io/) and provides 14 read-only tools for querying live cluster resources.
 
-### How It Works
+Out of the box, the sidecar is **deployed** but **not wired** to the OLS API. The Lightspeed console sends questions to the LLM (GPT-4) which answers from documentation only -- it has no access to real cluster data and will hallucinate cluster names.
+
+In this exercise you will wire the MCP server into the OLS pipeline so the Lightspeed console returns accurate, live data from your RHACM fleet.
+
+### Step 1 - Observe the Problem (Before)
+
+Open the Lightspeed console in the OpenShift web UI and ask:
+
+> **Show me all managed clusters and their status**
+
+Without the MCP server wired in, the LLM pulls from Red Hat documentation examples and returns fabricated cluster names like "spoke1" and "spoke4":
+
+![Lightspeed before MCP -- hallucinated cluster names](images/lightspeed-before-mcp.png)
+
+This happens because:
+- The `openshift-mcp-server` sidecar is running on port 8080
+- But the OLS API (port 8443) is not configured to connect to it
+- The LLM answers from documentation RAG context only
+
+### Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  lightspeed-app-server Pod                          │
-│                                                     │
-│  ┌─────────────────────┐  ┌──────────────────────┐  │
-│  │ lightspeed-service-  │  │ openshift-mcp-server │  │
-│  │ api         :8443    │  │              :8080    │  │
-│  └─────────────────────┘  └──────────┬───────────┘  │
-│                                      │              │
-└──────────────────────────────────────┼──────────────┘
-                                       │ uses SA token
-                                       ▼
-                               Kubernetes API
-                                       │
-                          ┌────────────┼────────────┐
-                          ▼            ▼            ▼
-                   ManagedClusters  Policies  PlacementDecisions
+┌──────────────────────────────────────────────────────────────┐
+│  lightspeed-app-server Pod                                   │
+│                                                              │
+│  ┌─────────────────────┐      ┌──────────────────────────┐   │
+│  │ lightspeed-service-  │      │ openshift-mcp-server     │   │
+│  │ api         :8443    │─────▶│                  :8080    │   │
+│  │                      │ SSE  │  /sse  /mcp  /healthz    │   │
+│  └──────────┬──────────┘      └─────────────┬────────────┘   │
+│             │                                │               │
+└─────────────┼────────────────────────────────┼───────────────┘
+              │                                │ uses SA token
+              ▼                                ▼
+         GPT-4 (Azure)                  Kubernetes API
+              │                                │
+              │  tool_calls ──────────▶ ManagedClusters
+              │  tool_results ◀─────── Policies, Pods,
+              │                        PlacementDecisions...
+              ▼
+     Response with real data
 ```
 
-The MCP server:
-- Runs as `/openshift-mcp-server --read-only --port 8080`
-- Exposes endpoints: `/mcp` (streamable HTTP), `/sse`, `/healthz`, `/stats`, `/metrics`
-- Uses the `lightspeed-app-server` ServiceAccount to authenticate to the Kubernetes API
-- Supports MCP protocol version `2024-11-05` with JSON-RPC 2.0
+Three `OLSConfig` settings connect these components:
 
-Available tools: `resources_list`, `resources_get`, `pods_list`, `pods_get`, `pods_log`, `pods_list_in_namespace`, `pods_top`, `nodes_top`, `nodes_log`, `nodes_stats_summary`, `events_list`, `namespaces_list`, `projects_list`, `configuration_view`
+| Setting | Purpose |
+|---------|---------|
+| `spec.featureGates: ["MCPServer"]` | Enables the MCP feature (disabled by default) |
+| `spec.mcpServers[].url` | Tells the OLS API where the MCP server lives |
+| `spec.ols.toolsApprovalConfig` | Lets the LLM invoke MCP tools automatically |
 
-### Step 1 - Grant RBAC for RHACM Resource Access
+### Step 2 - Grant RBAC for RHACM Resource Access
 
-By default, the `lightspeed-app-server` ServiceAccount only has permissions for token reviews and subject access reviews. The MCP server needs `cluster-reader` access to query RHACM resources (ManagedClusters, Policies, PlacementDecisions, etc.):
+The MCP server sidecar uses the `lightspeed-app-server` ServiceAccount, which by default only has permissions for token reviews. It needs `cluster-reader` to query RHACM resources:
 
 ```
 <hub> $ oc apply -f 07.AI-Operations/exercise-lightspeed/lightspeed-mcp-rbac.yaml
 ```
 
-This creates a ClusterRoleBinding granting `cluster-reader` to the `lightspeed-app-server` SA.
+This creates a ClusterRoleBinding granting `cluster-reader` to the `lightspeed-app-server` SA in the `openshift-lightspeed` namespace.
 
-### Step 2 - Expose the MCP Server
+### Step 3 - Wire the MCP Server to OLS
 
-The OLS API runs on port 8443, but the MCP server runs on port 8080. Create a dedicated Service and Route for the MCP endpoint:
+This is the key step. Patch the `OLSConfig` to enable the feature gate, register the MCP server URL, and allow automatic tool execution:
+
+```
+<hub> $ oc patch olsconfig cluster --type=merge -p '{
+  "spec": {
+    "featureGates": ["MCPServer"],
+    "mcpServers": [
+      {
+        "name": "openshift-mcp-server",
+        "url": "http://localhost:8080/sse",
+        "timeout": 30
+      }
+    ],
+    "ols": {
+      "toolsApprovalConfig": {
+        "approvalType": "never"
+      }
+    }
+  }
+}'
+```
+
+What each field does:
+
+- **`featureGates: ["MCPServer"]`** -- Enables the MCP feature in the OLS backend. Without this, the LLM never receives the MCP tools.
+- **`mcpServers[0].url: "http://localhost:8080/sse"`** -- Points the OLS API to the MCP sidecar. Since both containers share the same pod, `localhost:8080` works. The `/sse` endpoint provides Server-Sent Events transport.
+- **`toolsApprovalConfig.approvalType: "never"`** -- Lets the LLM call MCP tools (like `resources_list`, `pods_list`) automatically without requiring per-call user approval.
+
+The YAML version of this patch is in `07.AI-Operations/exercise-lightspeed/olsconfig-mcp-patch.yaml`.
+
+Wait for the operator to roll out the new pod:
+
+```
+<hub> $ oc rollout status deployment/lightspeed-app-server -n openshift-lightspeed --timeout=120s
+<hub> $ oc get olsconfig cluster -o jsonpath='{.status.overallStatus}'
+Ready
+```
+
+### Step 4 - Verify the Fix (After)
+
+Go back to the Lightspeed console and ask the same question:
+
+> **Use the resources_list tool with apiVersion cluster.open-cluster-management.io/v1 and kind ManagedCluster to show me all managed clusters on this hub**
+
+The response now includes the **real** managed clusters with live data:
+
+- **gpu-cluster** -- Available, labels: `gpu=true`, `accelerator=nvidia-l4`
+- **local-cluster** -- Available, labels: `environment=hub`
+- **standard-cluster** -- Available, labels: `environment=production`
+
+<!-- TODO: replace with actual after-screenshot once captured -->
+<!-- ![Lightspeed after MCP -- real cluster data](images/lightspeed-after-mcp.png) -->
+
+You can verify the tool was invoked by checking the OLS API logs:
+
+```
+<hub> $ oc logs -n openshift-lightspeed -l app.kubernetes.io/component=application-server \
+    -c lightspeed-service-api --tail=20 | grep -i "tool"
+```
+
+### Step 5 - Expose the MCP Server Externally
+
+The internal wiring is done. To also allow external MCP clients (IDEs, CLI tools) to connect, create a dedicated Service and Route for the MCP endpoint:
 
 ```
 <hub> $ oc apply -f 07.AI-Operations/exercise-lightspeed/lightspeed-mcp-service.yaml
 <hub> $ oc apply -f 07.AI-Operations/exercise-lightspeed/lightspeed-route.yaml
 ```
 
-Get the MCP endpoint:
+Get the external MCP endpoint:
 
 ```
 <hub> $ export MCP_URL=$(oc get route lightspeed-mcp -n openshift-lightspeed -o jsonpath='{.spec.host}')
 <hub> $ echo "MCP endpoint: https://${MCP_URL}"
 ```
 
-### Step 3 - Verify the MCP Server
+### Step 6 - Verify via MCP Endpoint
 
 Test the health endpoint:
 
@@ -256,7 +340,7 @@ Test a full MCP session querying managed clusters:
 
 You should see all three managed clusters (gpu-cluster, local-cluster, standard-cluster) returned with their labels and status.
 
-### Step 4 - Connect Your IDE
+### Step 7 - Connect Your IDE
 
 For **Cursor**, add to `.cursor/mcp.json`:
 
@@ -311,17 +395,29 @@ Then add to `.cursor/mcp.json`:
 }
 ```
 
-### Step 5 - Query Your Fleet
+### Step 8 - Query Your Fleet
 
 Once connected, you can ask your AI assistant questions about the RHACM fleet:
 
-- "Show me all managed clusters and their status"
+- "Use resources_list with apiVersion cluster.open-cluster-management.io/v1 and kind ManagedCluster to show all clusters"
 - "List all pods in the open-cluster-management namespace"
-- "What policies are non-compliant across my fleet?"
+- "What policies exist in the rhacm-policies namespace?"
 - "Show me the GPU node capacity on gpu-cluster"
 - "What PlacementDecisions exist and which clusters are they targeting?"
 
 ### Cleanup
+
+To revert the OLSConfig patch:
+
+```
+<hub> $ oc patch olsconfig cluster --type=json -p '[
+  {"op":"remove","path":"/spec/featureGates"},
+  {"op":"remove","path":"/spec/mcpServers"},
+  {"op":"remove","path":"/spec/ols/toolsApprovalConfig"}
+]'
+```
+
+To remove the external route, service, and RBAC:
 
 ```
 <hub> $ oc delete -f 07.AI-Operations/exercise-lightspeed/lightspeed-route.yaml

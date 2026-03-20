@@ -1,0 +1,23 @@
+---
+# Patch to wire the OLS API to the openshift-mcp-server sidecar.
+#
+# The sidecar is deployed by spec.ols.deployment.mcpServer but the OLS API
+# needs three additional settings before it will invoke MCP tools:
+#
+#   1. featureGates  – enable the MCPServer feature (disabled by default)
+#   2. mcpServers    – tell OLS where the MCP endpoint lives
+#   3. toolsApprovalConfig – let the LLM call tools without per-query approval
+#
+# Apply:
+#   oc patch olsconfig cluster --type=merge -p "$(cat olsconfig-mcp-patch.yaml)"
+
+spec:
+  featureGates:
+    - MCPServer
+  mcpServers:
+    - name: openshift-mcp-server
+      url: http://localhost:8080/sse
+      timeout: 30
+  ols:
+    toolsApprovalConfig:
+      approvalType: never
