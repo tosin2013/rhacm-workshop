@@ -11,7 +11,7 @@ metadata:
   namespace: mariadb-metrics
 spec:
   type: Git
-  pathname: https://github.com/michaelkotelnikov/rhacm-workshop.git 
+  pathname: https://github.com/tosin2013/rhacm-workshop.git 
 ---
 apiVersion: cluster.open-cluster-management.io/v1beta1
 kind: Placement
