@@ -1,0 +1,7 @@
+.medium-zoom-overlay,
+img.medium-zoom-image {
+  z-index: 1000;
+}
+.doc img {
+  cursor: zoom-in;
+}

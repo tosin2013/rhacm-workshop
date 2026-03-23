@@ -21,6 +21,40 @@ cd sno-quickstarts/gitops
 ./deploy.sh
 ----
 
+[NOTE]
+.Troubleshooting: `deploy.sh` errors or ArgoCD pods stuck in Pending
+====
+The `deploy.sh` script installs the operator and applies the ArgoCD CR with a fixed 30-second wait. Two common issues can occur:
+
+*ArgoCD CR fails to apply (webhook not ready)*
+
+If you see errors like `no matches for kind "ArgoCD"` or `no endpoints available for service "openshift-gitops-operator-controller-manager-service"`, the operator was not ready yet. Wait for the CRD and webhook endpoint to appear, then re-apply:
+
+[source,bash]
+----
+<hub> $ oc wait --for=condition=Established crd/argocds.argoproj.io --timeout=120s
+<hub> $ oc apply -f sno-quickstarts/gitops/cluster-config/openshift-gitops/argocd.yaml
+----
+
+*ArgoCD pods stuck in Pending ("Too many pods")*
+
+On SNO clusters with many operators installed, the default `maxPods: 250` limit can be exhausted. Check with:
+
+[source,bash]
+----
+<hub> $ oc describe pod -n openshift-gitops -l app.kubernetes.io/name=openshift-gitops-repo-server | grep -A2 Events
+----
+
+If you see `FailedScheduling: Too many pods`, raise the limit using the included script. This triggers a node reboot (~10-15 minutes):
+
+[source,bash]
+----
+<hub> $ bash scripts/bump-max-pods.sh 350
+----
+
+After the node returns, the pending pods will schedule automatically.
+====
+
 Make sure that the ArgoCD instance is running by navigating to ArgoCD's web UI. The URL can be found by running the next command -
 
 [source,bash]
