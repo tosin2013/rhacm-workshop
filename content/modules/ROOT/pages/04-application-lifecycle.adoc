@@ -162,7 +162,7 @@ image::argocd-cluster.png[argocd-cluster]
 
 Now that you integrated ArgoCD with RHACM, let's deploy an ApplicationSet resource using ArgoCD. The applications you're going to create are based on a single https://helm.sh/[helm] chart that serves two environments -- development and production.
 
-The applications use the same baseline Kubernetes resources at - {workshop_repo}/tree/master/04.Application-Lifecycle/exercise-argocd/application-resources/templates[exercise-argocd/application-resources/templates], but they use different `values` files at - {workshop_repo}/tree/master/04.Application-Lifecycle/exercise-argocd/application-resources/values[exercise-argocd/application-resources/values]. Each instance of the application uses a separate values set. The ApplicationSet resource iterates over the directories in the {workshop_repo}/tree/master/04.Application-Lifecycle/exercise-argocd/application-resources/values[exercise-argocd/application-resources/values] directory and creates an instance of an application for each directory name.
+The applications use the same baseline Kubernetes resources at - link:exercise-argocd/application-resources/templates[exercise-argocd/application-resources/templates], but they use different `values` files at - link:exercise-argocd/application-resources/values[exercise-argocd/application-resources/values]. Each instance of the application uses a separate values set. The ApplicationSet resource iterates over the directories in the link:exercise-argocd/application-resources/values[exercise-argocd/application-resources/values] directory and creates an instance of an application for each directory name.
 
 To create the ApplicationSet resource run the next commands -
 
