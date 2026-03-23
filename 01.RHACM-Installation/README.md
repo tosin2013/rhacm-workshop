@@ -42,21 +42,6 @@ In this section you will provision two additional managed clusters using ACM's H
 - **standard-cluster** — SNO on `m6i.2xlarge` for application deployment and policy exercises
 - **gpu-cluster** — SNO on `g6.4xlarge` with an NVIDIA L4 GPU for AI workload placement
 
-### Optional — Pre-Deployment Prerequisites Check
-
-Each SNO cluster requires ~3 Elastic IPs for NAT gateways (one per AZ). The default AWS quota is 5 EIPs, which is insufficient for two clusters. Run the pre-deployment script to check quotas, clean up orphaned resources, and request a quota increase if needed:
-
-```
-<hub> $ bash 01.RHACM-Installation/cluster-provisioning/pre-deploy-check.sh
-```
-
-The script will:
-- Install the AWS CLI if not present
-- Load AWS credentials from the ACM credential secret
-- Check your Elastic IP quota and request an increase to 10 if below 6
-- Release any orphaned (unassociated) Elastic IPs from failed deployments
-- Check vCPU quotas for the instance types used
-
 ### Step 1 - Create AWS Credential in ACM Console
 
 Create the AWS credential through the ACM Console. This stores your AWS keys, pull secret, SSH keys, and base domain in a single managed credential.
@@ -77,6 +62,21 @@ Verify the credential was created:
 <hub> $ oc get secret aws-credentials -n aws-credentials -o jsonpath='{.metadata.labels.cluster\.open-cluster-management\.io/type}'
 aws
 ```
+
+### Optional — Pre-Deployment Prerequisites Check
+
+Each SNO cluster requires ~3 Elastic IPs for NAT gateways (one per AZ). The default AWS quota is 5 EIPs, which is insufficient for two clusters. Run the pre-deployment script to check quotas, clean up orphaned resources, and request a quota increase if needed:
+
+```
+<hub> $ bash 01.RHACM-Installation/cluster-provisioning/pre-deploy-check.sh
+```
+
+The script will:
+- Install the AWS CLI if not present
+- Load AWS credentials from the ACM credential secret
+- Check your Elastic IP quota and request an increase to 10 if below 6
+- Release any orphaned (unassociated) Elastic IPs from failed deployments
+- Check vCPU quotas for the instance types used
 
 ### Step 2 - Update Cluster Configurations
 
