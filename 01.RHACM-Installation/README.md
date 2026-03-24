@@ -37,6 +37,8 @@ oc create -k https://github.com/tosin2013/sno-quickstarts/gitops/cluster-config/
 
 ## 1.3 Provision Managed Clusters via Hive on AWS
 
+> **Tip:** If you are using **ROSA (Red Hat OpenShift Service on AWS)** with Hosted Control Planes, ACM can provision and auto-import ROSA HCP clusters using CAPI instead of Hive. See the [Deploy ROSA with RHACM](https://cloud.redhat.com/experts/rosa/acm/) guide for that workflow.
+
 In this section you will provision two additional managed clusters using ACM's Hive provisioning to create a true multicluster environment:
 
 - **standard-cluster** — SNO on `m6i.2xlarge` for application deployment and policy exercises
