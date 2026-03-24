@@ -326,16 +326,46 @@ EOF
 
 In this section you will deploy and manage https://kyverno.io/[Kyverno] policies. Unlike Gatekeeper which uses the Rego policy language, Kyverno policies are written in standard Kubernetes YAML -- making them easier to author and review without learning a new language.
 
-=== Install Kyverno via ACM Policy
+=== Install Kyverno and Deploy Policies
 
-Apply the next policy to the hub cluster. The policy installs the Kyverno operator on managed clusters with `environment=dev`:
+The Kyverno community operator available via OLM may not install reliably. An automated script is provided that installs Kyverno via Helm, applies all ACM policies, and validates everything with tests.
+
+*Prerequisites:* `oc`, `helm`, and a kubeconfig for the managed cluster.
+
+Run the script from the hub:
 
 [source,bash]
 ----
-<hub> $ oc apply -f 06.Advanced-Policy-Management/demo-kyverno/policy-kyverno-install.yaml
+<hub> $ export MANAGED_KUBECONFIG=<path-to-managed-cluster-kubeconfig>
+<hub> $ bash 06.Advanced-Policy-Management/demo-kyverno/install-kyverno.sh
 ----
 
-Wait until the policy shows as *compliant* in the RHACM Governance dashboard. Verify Kyverno is running on the managed cluster:
+The script performs the following steps:
+
+. Installs Kyverno via Helm on the managed cluster
+. Applies `policy-kyverno-install.yaml` on the hub (registers the ACM install policy in the Governance dashboard)
+. Cleans up stale OLM resources on the managed cluster
+. Applies the shared Placement and both enforcement policies (`policy-kyverno-require-labels.yaml`, `policy-kyverno-disallow-privileged.yaml`)
+. Waits for all three policies to become Compliant
+. Runs four validation tests:
+** Pod without `app.kubernetes.io/name` label -- expect *DENIED*
+** Pod with the required label -- expect *ALLOWED*
+** Pod with `privileged: true` -- expect *DENIED*
+** Pod without privileged flag -- expect *ALLOWED*
+
+Expected output at the end:
+
+[source]
+----
+==========================================
+  Kyverno Module 06 Results
+==========================================
+  Passed: 4
+  Failed: 0
+==========================================
+----
+
+Verify Kyverno is running on the managed cluster:
 
 [source,bash]
 ----
@@ -347,7 +377,21 @@ kyverno-cleanup-controller-...                    1/1     Running   0          2
 kyverno-reports-controller-...                    1/1     Running   0          2m
 ----
 
-=== Policy #1 - Require Labels on Pods
+.Manual steps (for reference)
+[%collapsible]
+====
+==== Install Kyverno via ACM Policy
+
+Apply the install policy to the hub cluster. The policy creates the Kyverno namespace, OperatorGroup, and Subscription on managed clusters with `environment=production`:
+
+[source,bash]
+----
+<hub> $ oc apply -f 06.Advanced-Policy-Management/demo-kyverno/policy-kyverno-install.yaml
+----
+
+NOTE: The community operator install via OLM may fail. If Kyverno pods do not appear after a few minutes, use the Helm-based script above instead.
+
+==== Policy #1 - Require Labels on Pods
 
 This Kyverno policy requires all Pods to carry the `app.kubernetes.io/name` label. Notice how the policy is pure YAML -- no Rego required:
 
@@ -370,7 +414,7 @@ Wait until the policy is compliant, then test on the managed cluster:
     --labels="app.kubernetes.io/name=nginx"
 ----
 
-=== Policy #2 - Disallow Privileged Containers
+==== Policy #2 - Disallow Privileged Containers
 
 This policy blocks any Pod that sets `privileged: true` in its security context:
 
@@ -420,6 +464,7 @@ Clean up the test namespace:
 ----
 <managed cluster> $ oc delete namespace kyverno-test
 ----
+====
 
 === Kyverno vs Gatekeeper -- Key Differences
 
