@@ -25,12 +25,6 @@ mc  cluster-info --request-timeout=5s >/dev/null 2>&1  || { echo "Cannot reach m
 echo "  Hub:     $(hub whoami --show-server)"
 echo "  Managed: $(mc whoami --show-server)"
 
-# ── Clean up broken OLM resources ────────────────────────────────────────────
-info "Cleaning up stale OLM resources in ${KYVERNO_NAMESPACE} namespace"
-mc delete subscription.operators.coreos.com kyverno-operator -n "$KYVERNO_NAMESPACE" --ignore-not-found 2>&1 || true
-mc delete operatorgroup kyverno -n "$KYVERNO_NAMESPACE" --ignore-not-found 2>&1 || true
-mc delete csv -n "$KYVERNO_NAMESPACE" --all --ignore-not-found 2>&1 || true
-
 # ── Install Kyverno via Helm ─────────────────────────────────────────────────
 info "Installing Kyverno via Helm on managed cluster"
 KUBECONFIG="$MANAGED_KUBECONFIG" "$HELM" repo add kyverno https://kyverno.github.io/kyverno/ 2>/dev/null || true
@@ -52,6 +46,16 @@ mc get pods -n "$KYVERNO_NAMESPACE"
 # ── Ensure rhacm-policies namespace on hub ───────────────────────────────────
 info "Ensuring ${POLICY_NAMESPACE} namespace exists on hub"
 hub create namespace "$POLICY_NAMESPACE" 2>/dev/null || true
+
+# ── Apply Kyverno install policy on hub ──────────────────────────────────────
+info "Applying Kyverno install policy on hub"
+hub apply -f "${SCRIPT_DIR}/policy-kyverno-install.yaml"
+
+# ── Clean up broken OLM resources ────────────────────────────────────────────
+info "Cleaning up stale OLM resources in ${KYVERNO_NAMESPACE} namespace"
+mc delete subscription.operators.coreos.com kyverno-operator -n "$KYVERNO_NAMESPACE" --ignore-not-found 2>&1 || true
+mc delete operatorgroup kyverno -n "$KYVERNO_NAMESPACE" --ignore-not-found 2>&1 || true
+mc delete csv -n "$KYVERNO_NAMESPACE" --all --ignore-not-found 2>&1 || true
 
 # ── Apply Placement (shared by both policies) ───────────────────────────────
 info "Applying Kyverno Placement on hub"
@@ -80,7 +84,7 @@ info "Applying Kyverno disallow-privileged policy"
 hub apply -f "${SCRIPT_DIR}/policy-kyverno-disallow-privileged.yaml"
 
 info "Waiting for policies to become Compliant (up to 3 min)"
-for policy in policy-kyverno-require-labels policy-kyverno-disallow-privileged; do
+for policy in policy-kyverno-install policy-kyverno-require-labels policy-kyverno-disallow-privileged; do
   for i in $(seq 1 18); do
     state=$(hub get policy "$policy" -n "$POLICY_NAMESPACE" -o jsonpath='{.status.compliant}' 2>/dev/null || echo "")
     if [ "$state" = "Compliant" ]; then
