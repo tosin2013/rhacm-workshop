@@ -1,0 +1,19 @@
+# Role for validation runner pods (namespace-scoped)
+# Based on ADR-005: RBAC and Service Account Model
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jupyter-notebook-validator-runner-role
+  labels:
+    app.kubernetes.io/name: jupyter-notebook-validator-operator
+    app.kubernetes.io/component: validation-runner
+rules:
+  # Allow reading secrets for Git credentials
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+  # Allow reading configmaps for configuration
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list"]
+

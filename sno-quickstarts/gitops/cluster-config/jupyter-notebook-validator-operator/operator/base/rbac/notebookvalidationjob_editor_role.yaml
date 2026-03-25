@@ -1,0 +1,27 @@
+# permissions for end users to edit notebookvalidationjobs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: jupyter-notebook-validator-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: notebookvalidationjob-editor-role
+rules:
+- apiGroups:
+  - mlops.mlops.dev
+  resources:
+  - notebookvalidationjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - mlops.mlops.dev
+  resources:
+  - notebookvalidationjobs/status
+  verbs:
+  - get
