@@ -1,15 +1,60 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 # Pre-deployment prerequisites check for ACM cluster provisioning on AWS.
 # Installs AWS CLI, configures credentials from the ACM credential secret,
 # checks Elastic IP quota, cleans up orphaned resources, and optionally
 # requests a quota increase.
+#
+# Tested on: RHEL 9 (bash 5.x). macOS support included but not fully tested.
 
 REGION="${AWS_DEFAULT_REGION:-us-east-2}"
 CREDENTIAL_NS="${CREDENTIAL_NS:-aws-credentials}"
 CREDENTIAL_NAME="${CREDENTIAL_NAME:-aws-credentials}"
 REQUIRED_EIPS=6  # 3 per SNO cluster (one EIP per AZ for NAT gateways)
+
+OS="$(uname -s)"
+
+b64decode() {
+  case "$OS" in
+    Darwin) base64 -D ;;
+    *)      base64 -d ;;
+  esac
+}
+
+# --- Pre-flight checks ---
+echo "=== Pre-flight checks ==="
+
+MISSING=()
+for cmd in oc curl bc; do
+  if ! command -v "$cmd" &>/dev/null; then
+    MISSING+=("$cmd")
+  fi
+done
+if [[ "$OS" == "Linux" ]]; then
+  command -v unzip &>/dev/null || MISSING+=("unzip")
+fi
+
+if [[ ${#MISSING[@]} -gt 0 ]]; then
+  echo "ERROR: Missing required tools: ${MISSING[*]}"
+  echo ""
+  echo "Install them and re-run. Example:"
+  case "$OS" in
+    Darwin) echo "  brew install ${MISSING[*]}" ;;
+    *)      echo "  sudo dnf install -y ${MISSING[*]}" ;;
+  esac
+  exit 1
+fi
+
+if ! oc whoami &>/dev/null; then
+  echo "ERROR: Not logged into an OpenShift cluster."
+  echo "  Run 'oc login <API_URL>' first, then re-run this script."
+  exit 1
+fi
+
+echo "  Tools OK: oc, curl, bc$([ "$OS" == "Linux" ] && echo ", unzip")"
+echo "  Logged into: $(oc whoami --show-server)"
+echo ""
 
 echo "=== ACM Cluster Provisioning Pre-Deployment Check ==="
 echo "Region: $REGION"
@@ -18,9 +63,22 @@ echo ""
 # --- 1. AWS CLI ---
 if ! command -v aws &>/dev/null && ! [ -x /usr/local/bin/aws ]; then
   echo "[1/5] AWS CLI not found. Installing..."
-  curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
-  cd /tmp && unzip -qo awscliv2.zip && sudo ./aws/install && cd -
-  sudo chmod -R o+rx /usr/local/aws-cli/ 2>/dev/null || true
+  case "$OS" in
+    Linux)
+      curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+      cd /tmp && unzip -qo awscliv2.zip && sudo ./aws/install && cd -
+      sudo chmod -R o+rx /usr/local/aws-cli/ 2>/dev/null || true
+      ;;
+    Darwin)
+      curl -s "https://awscli.amazonaws.com/AWSCLIV2.pkg" -o /tmp/AWSCLIV2.pkg
+      sudo installer -pkg /tmp/AWSCLIV2.pkg -target /
+      ;;
+    *)
+      echo "  ERROR: Unsupported OS ($OS). Install the AWS CLI manually:"
+      echo "    https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
+      exit 1
+      ;;
+  esac
   echo "  AWS CLI installed."
 else
   echo "[1/5] AWS CLI found."
@@ -30,8 +88,8 @@ AWS=$( command -v aws || echo /usr/local/bin/aws )
 
 # --- 2. Configure AWS credentials from ACM secret ---
 echo "[2/5] Loading AWS credentials from ACM credential ($CREDENTIAL_NS/$CREDENTIAL_NAME)..."
-export AWS_ACCESS_KEY_ID=$(oc get secret "$CREDENTIAL_NAME" -n "$CREDENTIAL_NS" -o jsonpath='{.data.aws_access_key_id}' | base64 -d)
-export AWS_SECRET_ACCESS_KEY=$(oc get secret "$CREDENTIAL_NAME" -n "$CREDENTIAL_NS" -o jsonpath='{.data.aws_secret_access_key}' | base64 -d)
+export AWS_ACCESS_KEY_ID=$(oc get secret "$CREDENTIAL_NAME" -n "$CREDENTIAL_NS" -o jsonpath='{.data.aws_access_key_id}' | b64decode)
+export AWS_SECRET_ACCESS_KEY=$(oc get secret "$CREDENTIAL_NAME" -n "$CREDENTIAL_NS" -o jsonpath='{.data.aws_secret_access_key}' | b64decode)
 export AWS_DEFAULT_REGION="$REGION"
 echo "  Loaded. Region: $AWS_DEFAULT_REGION"
 

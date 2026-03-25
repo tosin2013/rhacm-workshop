@@ -3,6 +3,7 @@ set -euo pipefail
 
 # RHACM Workshop Setup Script
 # Validates the cluster environment and installs prerequisites for the workshop.
+# Tested on: RHEL 9 (bash 5.x). macOS support included but not fully tested.
 # Usage: ./setup.sh [--skip-aws] [--help]
 
 RED='\033[0;31m'
@@ -12,6 +13,9 @@ NC='\033[0m'
 
 SKIP_AWS=false
 ERRORS=0
+
+OS="$(uname -s)"
+ARCH="$(uname -m)"
 
 usage() {
   echo "Usage: $0 [--skip-aws] [--help]"
@@ -32,10 +36,109 @@ fail() { echo -e "  ${RED}✗${NC} $1"; ERRORS=$((ERRORS + 1)); }
 warn() { echo -e "  ${YELLOW}!${NC} $1"; }
 header() { echo -e "\n${YELLOW}=== $1 ===${NC}"; }
 
+install_with_pkg_manager() {
+  local pkg="$1"
+  case "$OS" in
+    Linux)
+      if command -v dnf &>/dev/null; then
+        sudo dnf install -y "$pkg" &>/dev/null
+      elif command -v yum &>/dev/null; then
+        sudo yum install -y "$pkg" &>/dev/null
+      else
+        return 1
+      fi
+      ;;
+    Darwin)
+      if ! command -v brew &>/dev/null; then
+        fail "Homebrew is not installed. Install it first: https://brew.sh"
+        return 1
+      fi
+      brew install "$pkg" 2>/dev/null
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+install_oc() {
+  echo -e "  ${YELLOW}Installing oc + kubectl from OpenShift mirror...${NC}"
+  local tarball=""
+  case "$OS" in
+    Linux)  tarball="https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz" ;;
+    Darwin)
+      if [[ "$ARCH" == "arm64" ]]; then
+        tarball="https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-mac-arm64.tar.gz"
+      else
+        tarball="https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-mac.tar.gz"
+      fi
+      ;;
+    *)
+      fail "Unsupported OS ($OS). Install oc manually: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/"
+      return 1
+      ;;
+  esac
+  local tmpdir
+  tmpdir="$(mktemp -d)"
+  if curl -sL "$tarball" | tar xz -C "$tmpdir"; then
+    sudo install -m 0755 "$tmpdir/oc" /usr/local/bin/oc
+    sudo install -m 0755 "$tmpdir/kubectl" /usr/local/bin/kubectl
+    rm -rf "$tmpdir"
+    return 0
+  else
+    rm -rf "$tmpdir"
+    return 1
+  fi
+}
+
+header "Platform"
+echo -e "  OS: $OS  Arch: $ARCH"
+
+header "Prerequisites"
+
+if command -v git &>/dev/null; then
+  pass "git found: $(git --version)"
+else
+  warn "git not found. Attempting install..."
+  if install_with_pkg_manager git; then
+    pass "git installed"
+  else
+    fail "Could not install git. Install it manually and re-run."
+  fi
+fi
+
+if command -v oc &>/dev/null; then
+  pass "oc found: $(oc version --client 2>/dev/null | head -1)"
+else
+  warn "oc not found. Attempting install..."
+  if install_oc; then
+    pass "oc installed: $(oc version --client 2>/dev/null | head -1)"
+  else
+    fail "Could not install oc. Download from https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/"
+  fi
+fi
+
+if command -v kubectl &>/dev/null; then
+  pass "kubectl found: $(kubectl version --client --short 2>/dev/null || kubectl version --client 2>/dev/null | head -1)"
+else
+  warn "kubectl not found. Attempting install..."
+  if command -v oc &>/dev/null; then
+    pass "kubectl ships with oc — already installed above"
+  elif install_with_pkg_manager kubectl; then
+    pass "kubectl installed"
+  else
+    fail "Could not install kubectl. Install it manually and re-run."
+  fi
+fi
+
 header "Cluster Connectivity"
 
+if ! command -v oc &>/dev/null; then
+  fail "oc CLI is not available. Cannot continue without it."
+  echo -e "\n${RED}Install oc and re-run this script.${NC}"
+  exit 1
+fi
+
 if ! oc whoami &>/dev/null; then
-  fail "Not logged into an OpenShift cluster. Run 'oc login' first."
+  fail "Not logged into an OpenShift cluster. Run 'oc login <API_URL>' first."
   echo -e "\n${RED}Cannot continue without cluster access.${NC}"
   exit 1
 fi
