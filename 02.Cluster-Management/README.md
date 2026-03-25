@@ -4,6 +4,49 @@ In this exercise you manage the clusters on the Red Hat Advanced Cluster Managem
 
 ## 2.1 Label and Inspect Managed Clusters
 
+### Logging into the clusters
+
+Before you begin, make sure you are logged into the **hub cluster** (where ACM is installed). Use the credentials from the Red Hat Demo Platform or the token from the OpenShift console:
+
+```
+<hub> $ oc login --token=<your-token> --server=https://api.<hub-domain>:6443
+```
+
+Verify that all managed clusters are visible from the hub:
+```
+<hub> $ oc get managedclusters
+NAME               HUB ACCEPTED   MANAGED CLUSTER URLS                                           JOINED   AVAILABLE   AGE
+local-cluster      true           https://api.<hub-domain>:6443                                  True     True        ...
+standard-cluster   true           https://api.standard-cluster.<base-domain>:6443                True     True        ...
+gpu-cluster        true           https://api.gpu-cluster.<base-domain>:6443                     True     True        ...
+```
+
+**Logging into Hive-provisioned clusters (standard-cluster, gpu-cluster):**
+
+Clusters provisioned via Hive in Module 01 store their `kubeadmin` credentials as secrets on the hub. To retrieve them:
+
+```
+# Get the API URL for a managed cluster:
+<hub> $ oc get managedcluster standard-cluster -o jsonpath='{.spec.managedClusterClientConfigs[0].url}'
+
+# Find the admin password secret name:
+<hub> $ oc get clusterdeployment standard-cluster -n standard-cluster \
+         -o jsonpath='{.spec.clusterMetadata.adminPasswordSecretRef.name}'
+
+# Extract the password (replace <secret-name> with the output above):
+<hub> $ oc get secret <secret-name> -n standard-cluster \
+         -o jsonpath='{.data.password}' | base64 -d; echo
+
+# Log into the managed cluster:
+<hub> $ oc login -u kubeadmin -p <password> https://api.standard-cluster.<base-domain>:6443
+```
+
+Repeat the same steps for **gpu-cluster** (using namespace `gpu-cluster`).
+
+> **Tip:** On **macOS**, replace `base64 -d` with `base64 -D`.
+
+### Applying labels
+
 1. Modify the attributes of the managed clusters in Red Hat Advanced Cluster Management -
 
 For **local-cluster**:
@@ -15,40 +58,60 @@ For **standard-cluster** (if provisioned):
 *   **labels**:
     * environment=dev
     * owner=&lt;your-name>
-    
-In order to associate the labels with local-cluster, follow the next steps (You may use the presentation for guidance) -
 
-*   Navigate to **Clusters** -> **local-cluster** -> **Actions** -> **Edit labels**.
+For **gpu-cluster** (if provisioned):
+*   **labels** (in addition to the gpu/accelerator labels already set by the ClusterDeployment):
+    * owner=&lt;your-name>
+
+**Option A — Via the ACM Console:**
+
+*   Navigate to **Clusters** -> select a cluster -> **Actions** -> **Edit labels**.
 *   Add the labels in the `key=value` format.
 
-2. Log into the cluster using the **oc** cli tool.
+**Option B — Via the CLI (from the hub):**
 
 ```
-<managed cluster> $ oc login -u <admin-user> -p <password> https://api.cluster.2222.sandbox.opentlc.com:6443
+<hub> $ oc label managedcluster local-cluster environment=hub owner=<your-name> --overwrite
+<hub> $ oc label managedcluster standard-cluster environment=dev owner=<your-name> --overwrite
+<hub> $ oc label managedcluster gpu-cluster owner=<your-name> --overwrite
 ```
 
-3. Make sure that all of the agent pods are up and running on the cluster.
+Verify all labels:
+```
+<hub> $ oc get managedcluster -L environment,owner,gpu,accelerator
+NAME               HUB ACCEPTED   ...   ENVIRONMENT   OWNER         GPU    ACCELERATOR
+local-cluster      true           ...   hub           <your-name>
+standard-cluster   true           ...   dev           <your-name>
+gpu-cluster        true           ...   ai            <your-name>   true   nvidia-l4
+```
+
+### Inspecting agent pods
+
+2. Log into each managed cluster (see login instructions above) and make sure the agent pods are running:
 
 ```
 <managed cluster> $ oc get pods -n open-cluster-management-agent
-NAME                                         	READY   STATUS	RESTARTS   AGE
-klusterlet-645d98d7d5-hnn2z                  	1/1 	Running   0      	46m
-klusterlet-registration-agent-66fdc479cf-ltlx6   1/1 	Running   0      	46m
-klusterlet-registration-agent-66fdc479cf-qnhzj   1/1 	Running   0      	46m
-klusterlet-registration-agent-66fdc479cf-t8x5n   1/1 	Running   0      	46m
-klusterlet-work-agent-6b8b99b899-27ht9       	1/1 	Running   0      	46m
-klusterlet-work-agent-6b8b99b899-95dkr       	1/1 	Running   1      	46m
-klusterlet-work-agent-6b8b99b899-vdp9r       	1/1 	Running   0      	46m
+NAME                                             READY   STATUS    RESTARTS   AGE
+klusterlet-agent-7b5dcbcc8-jwnqh                 1/1     Running   0          ...
+klusterlet-b5c848766-h5j6p                       1/1     Running   0          ...
 
 <managed cluster> $ oc get pods -n open-cluster-management-agent-addon
-NAME                                           READY   STATUS    RESTARTS   AGE
-application-manager-7c8879d57f-4x7ft           1/1     Running   0          24m
-cert-policy-controller-7584887cdf-2vkv5        1/1     Running   0          24m
-config-policy-controller-56d8d84c8c-p8z72      1/1     Running   0          24m
-governance-policy-framework-65c46c46c8-xtgfq   2/2     Running   0          24m
-iam-policy-controller-56b5bf6486-795wd         1/1     Running   0          24m
-klusterlet-addon-workmgr-55bc5d4fd-2jp55       1/1     Running   0          24m
+NAME                                                READY   STATUS    RESTARTS   AGE
+application-manager-85d5c7b944-v5qq9                1/1     Running   0          ...
+cert-policy-controller-849bcbcf94-qhp8j             1/1     Running   0          ...
+config-policy-controller-5796ffcbb5-4mhht           1/1     Running   0          ...
+governance-policy-framework-645d6cdb4c-wqkd6        1/1     Running   0          ...
+klusterlet-addon-workmgr-54db9ddcc-ngk2k            1/1     Running   0          ...
+managed-serviceaccount-addon-agent-56cc6c7c-ztsqc   1/1     Running   0          ...
 ```
+
+3. Alternatively, you can verify the klusterlet status of all clusters **from the hub** without logging into each one:
+
+```
+<hub> $ oc get managedcluster
+```
+
+All clusters should show `JOINED=True` and `AVAILABLE=True`.
 
 ## 2.2 Analyzing the managed cluster
 
