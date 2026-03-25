@@ -6,6 +6,10 @@ In this exercise you will verify the Advanced Cluster Management for Kubernetes 
 
 TIP: This workshop was built on top of the https://catalog.demo.redhat.com/catalog?item=babylon-catalog-prod/published.ocp4-acm-demo.prod&utm_source=webapp&utm_medium=share-link[Advanced Cluster Management for Kubernetes Demo] from the Red Hat Demo Platform. Order this catalog item to get a pre-configured hub cluster with ACM already installed, then continue with the verification steps below.
 
+NOTE: The commands below were written for *RHEL 9*. If you are running on *macOS*, be aware of two differences: +
+* Replace `base64 -d` with `base64 -D` (or install GNU coreutils: `brew install coreutils` and use `gbase64 -d`). +
+* Replace `sed -i "s|...|...|g"` with `sed -i '' "s|...|...|g"` (BSD sed requires an explicit empty backup suffix), or install GNU sed: `brew install gnu-sed` and use `gsed`.
+
 https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.15
 
 == 1.1 Verify ACM Installation
@@ -83,9 +87,10 @@ Each SNO cluster requires ~3 Elastic IPs for NAT gateways (one per AZ). The defa
 <hub> $ bash 01.RHACM-Installation/cluster-provisioning/pre-deploy-check.sh
 ----
 
-The script will:
+The script detects your platform (RHEL or macOS) and will:
 
-* Install the AWS CLI if not present
+* Verify required tools are installed (`oc`, `curl`, `bc`, `unzip`) before proceeding
+* Install the AWS CLI if not present (Linux zip installer or macOS pkg installer)
 * Load AWS credentials from the ACM credential secret
 * Check your Elastic IP quota and request an increase to 10 if below 6
 * Release any orphaned (unassociated) Elastic IPs from failed deployments
@@ -97,8 +102,14 @@ Extract the base domain and SSH public key from your credential:
 
 [source,bash]
 ----
+# RHEL / Linux:
 <hub> $ export BASE_DOMAIN=$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.baseDomain}' | base64 -d)
 <hub> $ export SSH_PUB_KEY=$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.ssh-publickey}' | base64 -d)
+
+# macOS — use -D instead of -d:
+<hub> $ export BASE_DOMAIN=$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.baseDomain}' | base64 -D)
+<hub> $ export SSH_PUB_KEY=$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.ssh-publickey}' | base64 -D)
+
 <hub> $ echo "Base domain: $BASE_DOMAIN"
 ----
 
@@ -107,25 +118,38 @@ Replace the placeholders in both cluster YAML files:
 [source,bash]
 ----
 <hub> $ cd 01.RHACM-Installation/cluster-provisioning/
+
+# RHEL / Linux (GNU sed):
 <hub> $ sed -i "s|<YOUR_BASE_DOMAIN>|${BASE_DOMAIN}|g" standard-cluster.yaml gpu-cluster.yaml
 <hub> $ sed -i "s|<YOUR_SSH_PUBLIC_KEY>|${SSH_PUB_KEY}|g" standard-cluster.yaml gpu-cluster.yaml
+
+# macOS (BSD sed) — note the empty quotes after -i:
+<hub> $ sed -i '' "s|<YOUR_BASE_DOMAIN>|${BASE_DOMAIN}|g" standard-cluster.yaml gpu-cluster.yaml
+<hub> $ sed -i '' "s|<YOUR_SSH_PUBLIC_KEY>|${SSH_PUB_KEY}|g" standard-cluster.yaml gpu-cluster.yaml
+
 <hub> $ cd -
 ----
 
 === Step 3 - Copy Secrets to Cluster Namespaces and Provision
 
-The Hive ClusterDeployment requires AWS credentials and the pull secret in each cluster's namespace. Copy them from the central credential:
+The Hive ClusterDeployment requires AWS credentials and the pull secret in each cluster's namespace. Copy them from the central credential.
+
+On *macOS*, replace `base64 -d` with `base64 -D` in the commands below.
 
 [source,bash]
 ----
+# Set the decode flag for your platform:
+<hub> $ B64D="base64 -d"        # RHEL / Linux
+<hub> $ B64D="base64 -D"        # macOS — use this line instead
+
 <hub> $ for NS in standard-cluster gpu-cluster; do
   oc create namespace $NS --dry-run=client -o yaml | oc apply -f -
   oc create secret generic aws-credentials -n $NS \
-    --from-literal=aws_access_key_id="$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.aws_access_key_id}' | base64 -d)" \
-    --from-literal=aws_secret_access_key="$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.aws_secret_access_key}' | base64 -d)" \
+    --from-literal=aws_access_key_id="$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.aws_access_key_id}' | $B64D)" \
+    --from-literal=aws_secret_access_key="$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.aws_secret_access_key}' | $B64D)" \
     --dry-run=client -o yaml | oc apply -f -
   oc create secret generic pull-secret -n $NS \
-    --from-literal=.dockerconfigjson="$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.pullSecret}' | base64 -d)" \
+    --from-literal=.dockerconfigjson="$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.pullSecret}' | $B64D)" \
     --type=kubernetes.io/dockerconfigjson \
     --dry-run=client -o yaml | oc apply -f -
 done

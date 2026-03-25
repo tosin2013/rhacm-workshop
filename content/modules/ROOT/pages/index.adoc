@@ -16,20 +16,45 @@ This workshop was built on top of the https://catalog.demo.redhat.com/catalog?it
 == Prerequisites
 
 * A running OpenShift {ocp_version}+ cluster with RHACM {acm_version} installed (see *Base Environment* above)
-* The `oc` CLI tool installed
-* The `kubectl` CLI tool installed
+* The `oc` CLI tool installed (the setup script will attempt to install it if missing)
+* The `kubectl` CLI tool installed (the setup script will attempt to install it if missing)
 * The `git` CLI tool installed
 * A GitHub account
 * AWS credentials (for provisioning managed clusters via Hive)
 
+== Platform Compatibility
+
+[cols="1,3",options="header"]
+|===
+| Platform | Status
+
+| *RHEL 9* (Red Hat Demo Platform bastion)
+| Fully tested
+
+| *macOS*
+| Supported, not fully tested. Scripts detect your OS and install tools via Homebrew. Some module exercises use GNU `sed -i` syntax -- you may need `brew install gnu-sed` and use `gsed` in place of `sed`.
+
+| *Windows*
+| Not supported. Use WSL2 or the RHEL bastion.
+|===
+
 == Quick Start
 
-Run the setup validation script to confirm your environment is ready:
+Clone the repository and run the setup validation script:
 
 [source,bash]
 ----
+git clone https://github.com/tosin2013/rhacm-workshop.git
+cd rhacm-workshop
 ./setup.sh
 ----
+
+The setup script will:
+
+. Detect your platform (Linux or macOS) and check for required CLI tools (`oc`, `kubectl`, `git`).
+. Attempt to auto-install any missing tools via `dnf` (RHEL/Fedora) or `brew` (macOS).
+. Validate your OpenShift cluster, ACM installation, managed clusters, storage, and APIs.
+. Check AWS credentials if provisioning managed clusters (skip with `--skip-aws`).
 
 == Workshop Architecture
 
