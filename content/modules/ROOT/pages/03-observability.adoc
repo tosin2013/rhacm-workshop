@@ -107,7 +107,19 @@ metadata:
   namespace: open-cluster-management-observability
 ----
 
-Now that the alert is configured, check whether the alert is initiated or not. To check the alert, navigate to the Grafana instance you've deployed in the previous task. In the Grafana instance, go to the 'Explore' dashboard (compass icon on the left sidebar). Before checking whether the alert is initiated or not, run the alert's query to check the memory utilization in the `local-cluster` cluster. Copy the next expression to the `query` tab, and press `SHIFT + ENTER` to run the query.
+Now that the alert is configured, check whether the alert is initiated or not. To check the alert, navigate to the Grafana instance you've deployed in the previous task. In the Grafana instance, go to the *Explore* page (compass icon on the left sidebar).
+
+==== Switching to Code mode
+
+By default, the Explore page opens in *Builder* mode, which shows visual dropdown selectors for metrics and labels. To paste raw PromQL expressions, you must switch to *Code* mode.
+
+image::grafana-explore-builder-mode.png[Grafana Explore Builder mode]
+
+In the query editor area, locate the *`Builder`* | *`Code`* toggle on the right side (above the Options row). Click *`Code`* to switch to a raw text input where you can type or paste PromQL queries directly.
+
+==== Verify memory utilization
+
+Copy the next expression into the Code editor and press `SHIFT + ENTER` (or click *Run query*):
 
 [source,text]
 ----
@@ -116,6 +128,8 @@ Now that the alert is configured, check whether the alert is initiated or not. T
 
 The result is a number that identifies the % of memory utilization of a cluster. For example, if the result is `0.1`, the memory utilization of a cluster is `10%`.
 
+image::grafana-explore-memory-query.png[Memory utilization query results]
+
 Try running the next query -
 
 [source,text]
@@ -123,22 +137,26 @@ Try running the next query -
 1 - sum(:node_memory_MemAvailable_bytes:sum) by (cluster) / sum(kube_node_status_allocatable{resource="memory"}) by (cluster) > 0.2
 ----
 
-The query checks whether the result of the previous query is more than `0.2` (20%). If the query checks out, it will present all clusters that utilize more than 20% of their memory - in your case, its only `local-cluster`.
+The query checks whether the result of the previous query is more than `0.2` (20%). If the query checks out, it will present all clusters that utilize more than 20% of their memory.
 
-Now that you understand the mechanism behind alerting, try running a query that displays the active alerts in your environment. The query should display the alert that you've configured in the previous steps. Copy the next expression to the `query` tab, and press `SHIFT + ENTER` to run it.
+==== Verify the alert is firing
+
+Now that you understand the mechanism behind alerting, try running a query that displays the active alerts in your environment. The query should display the alert that you've configured in the previous steps. Copy the next expression into the Code editor and press `SHIFT + ENTER` to run it.
 
 [source,text]
 ----
 ALERTS{alertname="ClusterMemoryHighUsage"}
 ----
 
-The initiated alert should now appear.
+The initiated alert should now appear with a value of `1` for each cluster that exceeds the 20% memory threshold.
+
+image::grafana-explore-alerts-query.png[ClusterMemoryHighUsage alert firing]
 
 === 3.3.2 - Alert #2
 
-The second alert will monitor the etcd database size. An alert will be initiated if the etcd database size in `local-cluster` reaches more than 100MiB. This time, you will create the alert expression by yourself (HINT: you can use the ACM - Clusters Overview dashboard for help).
+The second alert will monitor the etcd database size. An alert will be initiated if the etcd database size on any cluster exceeds 100MiB. The metric to use is `etcd_debugging_mvcc_db_total_size_in_bytes` (you can find this in the *ACM - Clusters Overview* Grafana dashboard).
 
-In order to deploy the second alert to `MCO` add the new alert definition to the `ConfigMap` you have created for the previous alert. The ConfigMap should look like -
+In order to deploy the second alert to `MCO`, add the new alert definition to the `ConfigMap` you created for the previous alert. Update the ConfigMap by applying:
 
 [source,yaml]
 ----
@@ -158,19 +176,47 @@ data:
           labels:
             cluster: "{{ $labels.cluster }}"
             severity: critical
-        - alert: ExampleSecondAlert
+        - alert: EtcdDatabaseHighSize
           annotations:
-            summary: Example Summary
-            description: "Example description"
+            summary: Notify when the etcd database size on a cluster exceeds 100MiB
+            description: "The etcd database size is {{ $value | humanize1024 }}B for {{ $labels.cluster }}."
           expr: |
-            ...
+            max(etcd_debugging_mvcc_db_total_size_in_bytes) by (cluster) > 100 * 1024 * 1024
+          for: 5s
+          labels:
+            cluster: "{{ $labels.cluster }}"
+            severity: warning
 kind: ConfigMap
 metadata:
   name: thanos-ruler-custom-rules
   namespace: open-cluster-management-observability
 ----
 
-Make sure that the alert works as expected.
+After applying, the thanos-rule pods will automatically pick up the new rule within ~60 seconds.
+
+==== Verify the etcd alert
+
+Navigate to Grafana *Explore* (compass icon), switch to *Code* mode, and run the following query to check the etcd database size across all clusters:
+
+[source,text]
+----
+max(etcd_debugging_mvcc_db_total_size_in_bytes) by (cluster)
+----
+
+You should see the raw etcd database size per cluster. In this example, `local-cluster` is well above the 100 MiB threshold:
+
+image::grafana-explore-etcd-size-query.png[etcd database size query results]
+
+Now verify the alert is firing by running:
+
+[source,text]
+----
+ALERTS{alertname="EtcdDatabaseHighSize"}
+----
+
+The alert should show as firing for any cluster whose etcd database exceeds 100 MiB:
+
+image::grafana-explore-etcd-alert-query.png[EtcdDatabaseHighSize alert firing]
 
 == 3.4 - Creating a custom dashboard
 
