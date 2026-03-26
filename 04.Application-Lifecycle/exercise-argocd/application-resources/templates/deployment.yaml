@@ -4,6 +4,7 @@ metadata:
   name: webserver
   labels:
     app: webserver
+    app.kubernetes.io/name: webserver
   namespace: {{ .Values.namespace }}
 spec:
   selector:
@@ -14,6 +15,7 @@ spec:
     metadata:
       labels:
         app: webserver
+        app.kubernetes.io/name: webserver
     spec:
       containers:
         - name: httpd
