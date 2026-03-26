@@ -292,7 +292,7 @@ Click the secret to see its details, then click **Reveal values** under the Data
 
 ![argocd-admin-password](images/argocd-admin-password.png)
 
-> **TIP:** You can also click **LOG IN VIA OPENSHIFT** to authenticate with your OpenShift credentials instead.
+> **IMPORTANT:** Do **not** use the **LOG IN VIA OPENSHIFT** button for this workshop. Logging in via OpenShift SSO (e.g., as `kubeadmin`) will not show the managed clusters in ArgoCD. You must use the `admin` username and password from the secret.
 
 Now that you have a running instance of ArgoCD, let's integrate it with RHACM!
 
