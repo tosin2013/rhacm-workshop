@@ -262,16 +262,37 @@ cd sno-quickstarts/gitops
 >
 > After the node returns, the pending pods will schedule automatically.
 
-Make sure that the ArgoCD instance is running by navigating to ArgoCD's web UI. The URL can be found be running the next command -
+Make sure that the ArgoCD instance is running by navigating to ArgoCD's web UI. The URL can be found by running:
 
 ```
-<hub> $ oc get route -n openshift-gitops
-NAME                      HOST/PORT                                  PATH   SERVICES                  PORT    TERMINATION            WILDCARD
-...
-openshift-gitops-server   openshift-gitops-server-openshift-gitops.<FQDN>   openshift-gitops-server   https   passthrough/Redirect   None
+<hub> $ oc get route openshift-gitops-server -n openshift-gitops -o jsonpath='{.spec.host}{"\n"}'
 ```
 
-Log into the ArgoCD instance by pressing on `Log In via OpenShift`.
+You can also find the route in the OpenShift Console under **Networking** -> **Routes** in the `openshift-gitops` project:
+
+![argocd-route](images/argocd-route.png)
+
+#### Logging into ArgoCD
+
+Open the ArgoCD URL in your browser. You will see the ArgoCD login page with two options:
+
+![argocd-login-page](images/argocd-login-page.png)
+
+**Option 1: Log In via OpenShift** -- Click the **LOG IN VIA OPENSHIFT** button and authenticate with your OpenShift credentials (e.g., `kubeadmin`).
+
+**Option 2: Admin username + password** -- Use the `admin` username with the password stored in the `openshift-gitops-cluster` secret. To retrieve it:
+
+```
+<hub> $ oc extract secret/openshift-gitops-cluster -n openshift-gitops --to=- --keys=admin.password
+```
+
+You can also find the password in the OpenShift Console: navigate to **Workloads** -> **Secrets** in the `openshift-gitops` project, then click on the `openshift-gitops-cluster` secret:
+
+![argocd-gitops-secrets](images/argocd-gitops-secrets.png)
+
+Click the secret to see its details, then click **Reveal values** under the Data section to see the `admin.password`:
+
+![argocd-admin-password](images/argocd-admin-password.png)
 
 Now that you have a running instance of ArgoCD, let's integrate it with RHACM!
 
