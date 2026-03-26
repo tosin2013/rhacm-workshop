@@ -274,13 +274,11 @@ You can also find the route in the OpenShift Console under **Networking** -> **R
 
 #### Logging into ArgoCD
 
-Open the ArgoCD URL in your browser. You will see the ArgoCD login page with two options:
+Open the ArgoCD URL in your browser. You will see the ArgoCD login page:
 
 ![argocd-login-page](images/argocd-login-page.png)
 
-**Option 1: Log In via OpenShift** -- Click the **LOG IN VIA OPENSHIFT** button and authenticate with your OpenShift credentials (e.g., `kubeadmin`).
-
-**Option 2: Admin username + password** -- Use the `admin` username with the password stored in the `openshift-gitops-cluster` secret. To retrieve it:
+Log in using the `admin` username and the password stored in the `openshift-gitops-cluster` secret. To retrieve the password:
 
 ```
 <hub> $ oc extract secret/openshift-gitops-cluster -n openshift-gitops --to=- --keys=admin.password
@@ -293,6 +291,8 @@ You can also find the password in the OpenShift Console: navigate to **Workloads
 Click the secret to see its details, then click **Reveal values** under the Data section to see the `admin.password`:
 
 ![argocd-admin-password](images/argocd-admin-password.png)
+
+> **TIP:** You can also click **LOG IN VIA OPENSHIFT** to authenticate with your OpenShift credentials instead.
 
 Now that you have a running instance of ArgoCD, let's integrate it with RHACM!
 
