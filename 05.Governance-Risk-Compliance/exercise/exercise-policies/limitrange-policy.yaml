@@ -20,7 +20,7 @@ spec:
           remediationAction: enforce # the policy-template spec.remediationAction is overridden by the preceding parameter value for spec.remediationAction.
           severity: medium
           namespaceSelector:
-            include: ["webserver-acm"]
+            include: ["webserver-dev"]
           object-templates:
             - complianceType: mustonlyhave
               objectDefinition:
@@ -28,6 +28,7 @@ spec:
                 kind: LimitRange # limit memory usage
                 metadata:
                   name: webserver-limit-range
+                  namespace: webserver-dev
                 spec:
                   limits:
                   - default:

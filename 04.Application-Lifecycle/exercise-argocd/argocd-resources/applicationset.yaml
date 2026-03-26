@@ -23,7 +23,7 @@ spec:
           valueFiles:
           - 'values/{{path.basename}}/values.yaml'
       destination:
-        name: 'local-cluster'
+        name: 'standard-cluster'
       syncPolicy:
         automated:
           prune: false

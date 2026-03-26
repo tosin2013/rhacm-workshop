@@ -2,15 +2,17 @@
 
 In this exercise you will go through the Compliance features that come with Red Hat Advanced Cluster Management for Kubernetes. You will apply a number of policies to the cluster in order to comply with global security and management standards.
 
-**NOTE!** The exercise depends on the ACM application deployed in the previous exercise (NOT the application deployed using ArgoCD). If the application is not available in your environment, run the next command to deploy it -
+**NOTE:** This exercise depends on the ArgoCD-deployed webserver application from Exercise 4. The application should already be running in the `webserver-dev` namespace on `local-cluster`. Verify with:
 
 ```
-<hub> $ oc apply -f https://raw.githubusercontent.com/tosin2013/rhacm-workshop/master/04.Application-Lifecycle/exercise-application/rhacm-resources/application.yaml
+<hub> $ oc get pods -n webserver-dev
 ```
 
-**NOTE!** Make sure that the `environment=production` label is associated with the managed cluster!
+If the application is not running, go back to Exercise 4 and deploy the ApplicationSet first.
 
-Before you start creating the policies, make sure to create a namespace to populate the CRs that associate with RHACM policies.
+### Step 1 -- Create the policies namespace
+
+Before creating any policies, you **must** create a namespace to hold the policy CRs. This step is required -- policies will fail to apply without it.
 
 ```
 <hub> $ cat >> policies-namespace.yaml << EOF
@@ -24,7 +26,9 @@ EOF
 <hub> $ oc apply -f policies-namespace.yaml
 ```
 
-After the namespace is created, create a Placement resource. We will use the Placement to associate the below policies with all clusters that are associated with the environment=production label.
+### Step 2 -- Create the Placement resource
+
+Create a Placement resource to associate the policies below with all clusters that have the `environment=dev` label (i.e., `standard-cluster`).
 
 ```
 <hub> $ cat >> placementrule-policies.yaml << EOF
@@ -39,7 +43,7 @@ spec:
     - requiredClusterSelector:
         labelSelector:
           matchLabels:
-            environment: production
+            environment: dev
 EOF
 
 <hub> $ oc apply -f placementrule-policies.yaml
@@ -47,7 +51,7 @@ EOF
 
 ## Policy #1 - Network Security
 
-In this section you will apply a NetworkPolicy object onto the cluster in order to limit access to the application you have created in the previous exercise. You will only allow traffic that comes from OpenShift’s Ingress Controller in port 8080. All other traffic will be dropped.
+In this section you will apply a NetworkPolicy object onto the cluster in order to limit access to the webserver application deployed in Exercise 4. You will only allow traffic that comes from OpenShift’s Ingress Controller in port 8080. All other traffic will be dropped.
 
 The policy you’ll create in this section will use the _enforce_ remediation action in order to create the NetworkPolicy objects if they do not exist.
 
@@ -56,7 +60,7 @@ We will configure the policy definition in two stages -
 
 ### Stage 1 - Deny all traffic to the application namespace
 
-The policy you will configure in this section is enforcing a _deny all_ NetworkPolicy in the webserver-acm namespace on the managed cluster. A _deny all_ NetworkPolicy object example -
+The policy you will configure in this section is enforcing a _deny all_ NetworkPolicy in the webserver-dev namespace on the managed cluster. A _deny all_ NetworkPolicy object example -
 
 ```
 kind: NetworkPolicy
@@ -95,7 +99,7 @@ spec:
           remediationAction: enforce # the policy-template spec.remediationAction is overridden by the preceding parameter value for spec.remediationAction.
           severity: medium
           namespaceSelector:
-            include: ["webserver-acm"]
+            include: ["webserver-dev"]
           object-templates:
             - complianceType: musthave
               objectDefinition:
@@ -103,6 +107,7 @@ spec:
                 apiVersion: networking.k8s.io/v1
                 metadata:
                   name: deny-by-default
+                  namespace: webserver-dev
                 spec:
                   podSelector:
                   ingress: []
@@ -127,8 +132,8 @@ EOF
 
 The above command creates two objects _Policy_ and _PlacementBinding_.
 
-* The _Policy_ objects define the NetworkPolicy that will be deployed on the managed cluster. It associates the NetworkPolicy to the webserver-acm namespace, and enforces it.
-* The _PlacementBinding_ resource associates the _Policy_ object with the _Placement_ resource that was created at the beginning of the exercise. Thereby, allowing the Policy to apply to all clusters with the _environment=production_ label.
+* The _Policy_ objects define the NetworkPolicy that will be deployed on the managed cluster. It associates the NetworkPolicy to the webserver-dev namespace, and enforces it.
+* The _PlacementBinding_ resource associates the _Policy_ object with the _Placement_ resource that was created at the beginning of the exercise. Thereby, allowing the Policy to apply to all clusters with the _environment=dev_ label.
 
 After the creation of the objects, navigate to **Governance** -> **Policies** in the Red Hat Advanced Cluster Management for Kubernetes console. Note that the policy is configured, and the managed cluster is compliant.
 
@@ -141,7 +146,7 @@ In order to understand the difference between the various _complianceType_ value
 
 ### Stage 2 - Allow traffic from the Ingress Controller
 
-In this section, you will modify the policy you have created in the previous section. You will add another ObjectDefinition entry to the policy. The ObjectDefinition will apply a second NetworkPolicy object onto the webserver-acm namespace in the managed cluster. The NetworkPolicy object will allow traffic from the Ingress Controller to reach the webserver application in port 8080. An example definition of the NetworkPolicy object -
+In this section, you will modify the policy you have created in the previous section. You will add another ObjectDefinition entry to the policy. The ObjectDefinition will apply a second NetworkPolicy object onto the webserver-dev namespace in the managed cluster. The NetworkPolicy object will allow traffic from the Ingress Controller to reach the webserver application in port 8080. An example definition of the NetworkPolicy object -
 
 ```
 apiVersion: networking.k8s.io/v1
@@ -189,7 +194,7 @@ spec:
           remediationAction: enforce # the policy-template spec.remediationAction is overridden by the preceding parameter value for spec.remediationAction.
           severity: medium
           namespaceSelector:
-            include: ["webserver-acm"]
+            include: ["webserver-dev"]
           object-templates:
             - complianceType: musthave
               objectDefinition:
@@ -197,6 +202,7 @@ spec:
                 apiVersion: networking.k8s.io/v1
                 metadata:
                   name: deny-by-default
+                  namespace: webserver-dev
                 spec:
                   podSelector:
                   ingress: []
@@ -209,7 +215,7 @@ spec:
           remediationAction: enforce # the policy-template spec.remediationAction is overridden by the preceding parameter value for spec.remediationAction.
           severity: medium
           namespaceSelector:
-            include: ["webserver-acm"]
+            include: ["webserver-dev"]
           object-templates:
             - complianceType: musthave
               objectDefinition:
@@ -217,6 +223,7 @@ spec:
                 apiVersion: networking.k8s.io/v1
                 metadata:
                   name: allow-ingress-8080
+                  namespace: webserver-dev
                 spec:
                   ingress:
                   - ports:
@@ -260,7 +267,7 @@ Make sure that the application is accessible now at - **https://&lt;webserver ap
 
 In this section you will apply a LimitRange object onto the cluster in order to limit the application’s resource consumption. You will configure a LimitRange object that limits the application’s container memory to 512Mb.
 
-The policy you will create defines the next LimitRange object in the webserver-acm namespace -
+The policy you will create defines the next LimitRange object in the webserver-dev namespace -
 
 ```
 apiVersion: v1
@@ -302,7 +309,7 @@ spec:
           remediationAction: enforce # the policy-template spec.remediationAction is overridden by the preceding parameter value for spec.remediationAction.
           severity: medium
           namespaceSelector:
-            include: ["webserver-acm"]
+            include: ["webserver-dev"]
           object-templates:
             - complianceType: mustonlyhave
               objectDefinition:
@@ -310,6 +317,7 @@ spec:
                 kind: LimitRange # limit memory usage
                 metadata:
                   name: webserver-limit-range
+                  namespace: webserver-dev
                 spec:
                   limits:
                   - default:
@@ -340,10 +348,10 @@ Make sure that the managed cluster is compliant to the policy by navigating to *
 
 Make sure that the LimitRange object is created in your managed cluster -
 
-* Validate that the LimitRange object is created in the webserver-acm namespace -
+* Validate that the LimitRange object is created in the webserver-dev namespace -
 
 ```
-<managed cluster> $ oc get limitrange webserver-limit-range -o yaml -n webserver-acm
+<managed cluster> $ oc get limitrange webserver-limit-range -o yaml -n webserver-dev
 ```
 
 As the admin user in the managed cluster, try to modify the values of the LimitRange resource (change the memory limit from 512Mi to 1024Mi) -
@@ -352,13 +360,13 @@ As the admin user in the managed cluster, try to modify the values of the LimitR
 <managed cluster> $ oc whoami
 admin
 
-<managed cluster> $ oc edit limitrange/webserver-limit-range -n webserver-acm
+<managed cluster> $ oc edit limitrange/webserver-limit-range -n webserver-dev
 ```
 
 Notice that if you list the LimitRange resource again, the value of the memory limit is back to 512Mi. The 1024Mi value was overridden by the Red Hat Advanced Cluster Management’s policy controller. Changing the LimitRange’s values is only possible by editing the Policy object on the hub cluster.
 
 ```
-<managed cluster> $ oc get limitrange webserver-limit-range -o yaml -n webserver-acm
+<managed cluster> $ oc get limitrange webserver-limit-range -o yaml -n webserver-dev
 ...
   limits:
   - default:
@@ -477,7 +485,7 @@ spec:
 10. Log into managed cluster. Make sure that the change in GitHub was applied to the LimitRange resource.
 
 ```
-<managed cluster> $ oc get limitrange webserver-limit-range -o yaml -n webserver-acm
+<managed cluster> $ oc get limitrange webserver-limit-range -o yaml -n webserver-dev
 ...
   limits:
   - default:

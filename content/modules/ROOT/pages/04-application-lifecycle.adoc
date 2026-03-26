@@ -91,9 +91,9 @@ IMPORTANT: Do *not* use the *LOG IN VIA OPENSHIFT* button for this workshop. Log
 
 === Preparing RHACM for ArgoCD Integration
 
-In this part you will create the resources to import `local-cluster` into ArgoCD's managed clusters.
+In this part you will create the resources to import `local-cluster` and `standard-cluster` into ArgoCD's managed clusters.
 
-Create the next ManagedClusterSet resource. The ManagedClusterSet resource will include the `local-cluster` cluster. The ManagedClusterSet resource is associated with the `openshift-gitops` namespace.
+Create the next ManagedClusterSet resource. The ManagedClusterSet resource will include both clusters. The ManagedClusterSet resource is associated with the `openshift-gitops` namespace.
 
 [source,bash]
 ----
@@ -108,14 +108,15 @@ EOF
 <hub> $ oc apply -f managedclusterset.yaml
 ----
 
-Now, import `local-cluster` into the ManagedClusterSet resource. Importation will be done by adding the `cluster.open-cluster-management.io/clusterset: all-clusters` label to the `local-cluster` ManagedCluster resource -
+Now, import both `local-cluster` and `standard-cluster` into the ManagedClusterSet resource. Importation will be done by adding the `cluster.open-cluster-management.io/clusterset: all-clusters` label to each ManagedCluster resource -
 
 [source,bash]
 ----
 <hub> $ oc label managedcluster local-cluster cluster.open-cluster-management.io/clusterset=all-clusters --overwrite
+<hub> $ oc label managedcluster standard-cluster cluster.open-cluster-management.io/clusterset=all-clusters --overwrite
 ----
 
-Create the ManagedClusterSetBinding resource to bind the `all-clusters` ManagedClusterSet to the `openshift-gitops` namespace. Creating the ManagedClusterSetBinding resource will allow ArgoCD to access `local-cluster` information and import it into its management stack.
+Create the ManagedClusterSetBinding resource to bind the `all-clusters` ManagedClusterSet to the `openshift-gitops` namespace. Creating the ManagedClusterSetBinding resource will allow ArgoCD to access cluster information and import it into its management stack.
 
 [source,bash]
 ----
@@ -176,7 +177,7 @@ EOF
 <hub> $ oc apply -f gitopscluster.yaml
 ----
 
-Make sure that `local-cluster` is imported into ArgoCD. In ArgoCD's web UI, on the left menu bar, navigate to *Manage your repositories, projects, settings* -> *Clusters*. You should see `local-cluster` in the cluster list.
+Make sure that both `local-cluster` and `standard-cluster` are imported into ArgoCD. In ArgoCD's web UI, on the left menu bar, navigate to *Manage your repositories, projects, settings* -> *Clusters*. You should see both clusters in the cluster list.
 
 image::argocd-cluster.png[argocd-cluster]
 
@@ -207,11 +208,11 @@ The *webserver-production* application mirrors the same structure in its own nam
 
 image::argocd-webserver-production.png[ArgoCD webserver-production application]
 
-Make sure that the applications are available by navigating to their Route resources.
+Make sure that the applications are available. The applications are deployed to `standard-cluster`, so verify the Route resources there:
 
 [source,bash]
 ----
-<hub> $ oc get route -n webserver-prod
+<standard-cluster> $ oc get route -n webserver-prod
 
 NAME        HOST/PORT                              PATH                SERVICES    PORT       TERMINATION   WILDCARD
 webserver   webserver-webserver-prod.apps.<FQDN>   /application.html    webserver   8080-tcp   edge          None
@@ -219,11 +220,13 @@ webserver   webserver-webserver-prod.apps.<FQDN>   /application.html    webserve
 
 [source,bash]
 ----
-<hub> $ oc get route -n webserver-dev
+<standard-cluster> $ oc get route -n webserver-dev
 
 NAME        HOST/PORT                             PATH                SERVICES    PORT       TERMINATION   WILDCARD
 webserver   webserver-webserver-dev.apps.<FQDN>   /application.html    webserver   8080-tcp   edge          None
 ----
+
+TIP: If you don't have a kubeconfig context for `standard-cluster`, you can retrieve the route from the hub using RHACM search or the ArgoCD UI.
 
 Navigate to each application's route URL to verify the development and production pages display correctly.
 

@@ -11,5 +11,8 @@ spec:
   - namespace: '*'
     name: local-cluster
     server: '*'
+  - namespace: '*'
+    name: standard-cluster
+    server: '*'
   sourceRepos:
   - '*'
