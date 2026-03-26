@@ -222,6 +222,19 @@ image::grafana-explore-etcd-alert-query.png[EtcdDatabaseHighSize alert firing]
 
 In this section you will add your own dashboard to the default dashboards that come with MCO.
 
+[IMPORTANT]
+.Troubleshooting: "Too many pods"
+====
+If pods are stuck in `Pending` with `FailedScheduling: 0/1 nodes are available: 1 Too many pods`, the node has hit the Kubernetes `maxPods` limit. This is common on SNO (Single Node OpenShift) clusters after deploying Observability. Fix it by running:
+
+[source,bash]
+----
+<hub> $ bash scripts/bump-max-pods.sh 350
+----
+
+This triggers a node reboot (~10-15 min). Monitor with `oc get mcp master -w`. Pending pods will schedule automatically after the node returns.
+====
+
 Before you can create a custom dashboard, you need to spin up a "Development Grafana" instance. The tools are in the https://github.com/stolostron/multicluster-observability-operator[multicluster-observability-operator] repository.
 
 Clone the repo and deploy the Grafana dev instance:
@@ -235,14 +248,14 @@ Clone the repo and deploy the Grafana dev instance:
 
 The script will output the Grafana dev URL (e.g., `\https://grafana-dev-open-cluster-management-observability.apps.<basedomain>`).
 
-Next, *log into the Grafana Dev instance* in your browser using the `kubeadmin` (or desired admin) user. Then promote that user to Grafana admin:
+Next, *log into the Grafana Dev instance in your browser first* using the `kubeadmin` (or desired admin) user. You *must* log in before running the admin promotion script, because the script looks up the user in Grafana's database -- if you haven't logged in, the user doesn't exist yet and the script will fail.
+
+Once logged in, promote that user to Grafana admin:
 
 [source,bash]
 ----
 <hub> $ bash switch-to-grafana-admin.sh kube:admin
 ----
-
-*NOTE* You must log into the Grafana Dev instance in your browser *before* running `switch-to-grafana-admin.sh`, otherwise the script will fail to find the user.
 
 
 === 3.4.1 - Panel #1 - Available memory per node

@@ -54,6 +54,34 @@ The repository is separated into 7 sections. Each section represents a stage in 
 
 Each section contains a `README.md` file that contains exercises which summarize the topic. When the participants finish the relevant section in the [workshop](https://docs.google.com/presentation/d/1LCPvIT_nF5hwnrfYdlD0Zie4zdDxc0kxZtW3Io5jfFk/edit?usp=sharing), they may start working on the associated exercise.
 
+## Troubleshooting
+
+### "Too many pods" / FailedScheduling
+
+If you see pods stuck in `Pending` with an event like:
+
+```
+0/1 nodes are available: 1 Too many pods. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.
+```
+
+This means the node has hit the Kubernetes `maxPods` limit (default 250 on SNO clusters). This commonly happens during Exercise 3 (Observability) or Exercise 4 (ArgoCD) when many pods are deployed.
+
+**Fix:** Run the included script to raise the limit to 350. This creates a `KubeletConfig` and triggers a node reboot (~10-15 minutes):
+
+```
+bash scripts/bump-max-pods.sh 350
+```
+
+Monitor the rollout with `oc get mcp master -w`. After the node returns, pending pods will schedule automatically.
+
+### switch-to-grafana-admin.sh errors (Exercise 3)
+
+This script lives in the `multicluster-observability-operator` repo, not this workshop repo. You must:
+
+1. Clone the repo: `git clone --depth 1 https://github.com/stolostron/multicluster-observability-operator.git`
+2. **Log into the Dev Grafana URL in your browser first** (the script looks up your user in the Grafana database -- if you haven't logged in, the user doesn't exist yet)
+3. Run from the `tools` directory: `cd multicluster-observability-operator/tools && bash switch-to-grafana-admin.sh kube:admin`
+
 ## Workshop Architecture
 
 ```
