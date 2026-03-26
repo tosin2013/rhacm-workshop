@@ -205,77 +205,43 @@ The alert should show as firing for any cluster whose etcd database exceeds 100 
 
 ![grafana-etcd-alert-query](images/grafana-explore-etcd-alert-query.png)
 
-### 3.4 - Creating a custom dashboard
+### 3.4 - Creating custom dashboards
 
-In this section you will add your own dashboard to the default dashboards that come with MCO.
+In this section you will add custom dashboards to the production Grafana instance that comes with MCO. Custom dashboards are deployed by wrapping a Grafana dashboard JSON file in a ConfigMap with the label `grafana-custom-dashboard: "true"` and applying it to the `open-cluster-management-observability` namespace. The Grafana dashboard loader automatically picks up the ConfigMap and imports the dashboard into the **Custom** folder.
 
-> **Troubleshooting: "Too many pods"**
->
-> If pods are stuck in `Pending` with `FailedScheduling: 0/1 nodes are available: 1 Too many pods`, the node has hit the Kubernetes `maxPods` limit. This is common on SNO (Single Node OpenShift) clusters after deploying Observability. Fix it by running:
->
-> ```
-> <hub> $ bash scripts/bump-max-pods.sh 350
-> ```
->
-> This triggers a node reboot (~10-15 min). Monitor with `oc get mcp master -w`. Pending pods will schedule automatically after the node returns.
+#### 3.4.1 - Cluster Node Resources Dashboard (Memory and CPU)
 
-Before you can create a custom dashboard, you need to spin up a "Development Grafana" instance. The tools are in the [multicluster-observability-operator](https://github.com/stolostron/multicluster-observability-operator) repository.
+This dashboard contains two panels that show resource availability across cluster nodes:
 
-Clone the repo and deploy the Grafana dev instance:
+- **Available Memory per Node** -- graphs `node_memory_MemAvailable_bytes` per instance, with a cluster selector dropdown
+- **Available CPU per Node** -- graphs total CPU cores (`machine_cpu_cores`) and idle CPU cores per instance
+
+A pre-built dashboard JSON is provided at `03.Observability/exercise/cluster-node-resources-dashboard.json`. Apply it as a ConfigMap:
 
 ```
-<hub> $ git clone --depth 1 https://github.com/stolostron/multicluster-observability-operator.git
-<hub> $ cd multicluster-observability-operator/tools
-<hub> $ bash setup-grafana-dev.sh --deploy
+<hub> $ oc create configmap cluster-node-resources \
+  --from-file=cluster-node-resources.json=03.Observability/exercise/cluster-node-resources-dashboard.json \
+  -n open-cluster-management-observability \
+  --dry-run=client -o yaml | \
+  oc label -f - --local --dry-run=client -o yaml grafana-custom-dashboard=true | \
+  oc apply -f -
 ```
 
-The script will output the Grafana dev URL (e.g., `https://grafana-dev-open-cluster-management-observability.apps.<basedomain>`).
+After applying, navigate to the production Grafana instance -> **Dashboards** -> **Custom** folder. Both custom dashboards should appear:
 
-Next, **log into the Grafana Dev instance in your browser first** using the `kubeadmin` (or desired admin) user. You **must** log in before running the admin promotion script, because the script looks up the user in Grafana's database -- if you haven't logged in, the user doesn't exist yet and the script will fail.
+![grafana-custom-dashboards-folder](images/grafana-custom-dashboards-folder.png)
 
-Once logged in, promote that user to Grafana admin:
+Open the **Cluster Node Resources** dashboard. Use the **Cluster** dropdown at the top to switch between managed clusters:
 
-```
-<hub> $ bash switch-to-grafana-admin.sh kube:admin
-```
+![cluster-node-resources-dashboard](images/cluster-node-resources-dashboard.png)
 
-
-#### 3.4.1 - Panel #1 - Available memory per node
-
-The dashboard you design in this part will present a graph that aggregates all available nodes in all clusters and show their available memory over a defined time period. In order to configure that dashboard, follow the next steps -
-
-- Log into the development instance.
-- Press on the large `+` on the left sidebar, select `Dashboard`.
-- A panel will appear in the new dashboard. Press on `Add an empty panel` in order to create a custom graph.
-- Enter the next query in the `Metrics browser` tab - `node_memory_MemAvailable_bytes{cluster="local-cluster"}`.
-- Enter the next label into the `Legend` field - `{{ instance }}`.
-- In the right menu, scroll down to the `Standard options` section. In the `Unit` section, select `Data` -> `bytes (IEC)`.
-- In the same menu, add `0` to the `Min` key.
-- In the top of the right menu, provide your panel with a name at - `Panel title`.
-- Press on `Apply` at the top right end of the screen.
-- You have created your first panel!
-
-![panel-1](images/panel-1.png)
-
-#### 3.4.2 - Panel #2 - Available CPU per node
-
-For this panel, you will create a same graph like in the previous section, but this time, you will monitor the node's available CPU. While creating the panel, make sure that you use the correct `Units`.
-
-![panel-2](images/panel-2.png)
-
-Make sure that you get the correct values by running the next command on the hub cluster -
+Verify the values match by running on the hub cluster:
 
 ```
 <hub> $ oc adm top node
-NAME                                         CPU(cores)   CPU%   MEMORY(bytes)   MEMORY%   
-ip-10-0-138-131.us-east-2.compute.internal   2064m        27%    10496Mi         34%       
-ip-10-0-148-108.us-east-2.compute.internal   3259m        21%    11826Mi         19%       
-ip-10-0-166-190.us-east-2.compute.internal   7359m        47%    16188Mi         26%       
-ip-10-0-186-66.us-east-2.compute.internal    1786m        23%    8773Mi          28%       
-ip-10-0-202-11.us-east-2.compute.internal    1754m        23%    8781Mi          28%  
 ```
 
-#### 3.4.3 - Bonus: GPU Monitoring Dashboard
+#### 3.4.2 - Bonus: GPU Monitoring Dashboard
 
 In this section you will import a pre-built NVIDIA GPU dashboard that visualizes DCGM (Data Center GPU Manager) metrics from managed clusters with GPUs. This ties back to the `gpu-cluster` provisioned in Exercise 1.
 
@@ -289,58 +255,55 @@ By default, ACM Observability only collects a curated set of metrics. DCGM metri
 
 Wait 2-3 minutes for the metrics-collector on the gpu-cluster to pick up the new allowlist and start forwarding DCGM metrics.
 
-##### Import the GPU dashboard into Grafana Dev
+##### Apply the GPU dashboard
 
 A dashboard JSON file adapted from the [official NVIDIA DCGM Exporter dashboard](https://github.com/NVIDIA/dcgm-exporter/blob/main/grafana/dcgm-exporter-dashboard.json) is provided at `03.Observability/exercise/nvidia-dcgm-dashboard.json`. It has been modified to use the `Observatorium` datasource and a `cluster` template variable for multi-cluster filtering.
 
-Import it into the Grafana Dev instance:
+Apply it as a ConfigMap:
 
-1. Open the Grafana Dev URL in your browser.
-2. Click the **+** icon on the left sidebar and select **Import**.
-3. Click **Upload JSON file** and select `03.Observability/exercise/nvidia-dcgm-dashboard.json`.
-4. Click **Import**.
+```
+<hub> $ oc create configmap nvidia-gpu-dcgm-exporter \
+  --from-file=nvidia-gpu-dcgm-exporter.json=03.Observability/exercise/nvidia-dcgm-dashboard.json \
+  -n open-cluster-management-observability \
+  --dry-run=client -o yaml | \
+  oc label -f - --local --dry-run=client -o yaml grafana-custom-dashboard=true | \
+  oc apply -f -
+```
 
-The dashboard includes 8 panels: GPU Temperature, Avg Temp gauge, Power Usage, Power Total gauge, GPU Utilization, Memory Utilization, Framebuffer Memory Used, and SM Clocks. Use the **Cluster** dropdown at the top to filter by your gpu-cluster.
+The dashboard includes 8 panels: GPU Temperature, Avg Temp gauge, Power Usage, Power Total gauge, GPU Utilization, Memory Utilization, Framebuffer Memory Used, and SM Clocks. Navigate to **Dashboards** -> **Custom** in the production Grafana and use the **Cluster** dropdown to filter by your gpu-cluster.
 
 ![gpu-dashboard](images/gpu-dashboard.png)
 
 > **NOTE:** The GPU Operator policy (`gpu-operator-policy.yaml`) includes `serviceMonitor.enabled: true` for `dcgmExporter`, which tells the GPU Operator to create a ServiceMonitor so that Prometheus on the managed cluster scrapes the DCGM exporter metrics. Without this, the DCGM metrics will not appear in ACM Observability.
 
-##### Export the GPU dashboard using the script
+#### 3.4.3 - Advanced: Development Grafana Instance
 
-Now use the export script to generate a ConfigMap YAML from the imported dashboard:
+For users who want to build dashboards interactively in a Grafana UI and then export them, ACM supports a "Development Grafana" instance. This is **optional** -- the ConfigMap approach above is the recommended method for this workshop.
 
-```
-<hub> $ bash generate-dashboard-configmap-yaml.sh "NVIDIA GPU - DCGM Exporter"
-```
-
-This generates a file named `nvidia-gpu---dcgm-exporter.yaml` in the current directory. Apply it to the hub cluster:
+The tools are in the [multicluster-observability-operator](https://github.com/stolostron/multicluster-observability-operator) repository:
 
 ```
-<hub> $ oc apply -f nvidia-gpu---dcgm-exporter.yaml -n open-cluster-management-observability
+<hub> $ git clone --depth 1 https://github.com/stolostron/multicluster-observability-operator.git
+<hub> $ cd multicluster-observability-operator/tools
+<hub> $ bash setup-grafana-dev.sh --deploy
 ```
 
-Verify the dashboard now appears in the **Production** Grafana instance under the **Custom** folder.
+After deploying, log into the dev Grafana URL in your browser, then promote your user to admin:
 
-#### 3.4.4 - Export your own dashboard to the main Grafana instance
+```
+<hub> $ bash switch-to-grafana-admin.sh kube:admin
+```
 
-Until now, you have worked on the "Development" Grafana instance. It's time to export the dashboard you created in sections 3.4.1 and 3.4.2 to the main "Production" Grafana instance. Before you begin the export process, make sure to save your dashboard by pressing `CTRL + S`. Provide the dashboard with a simple, declarative name.
+> **NOTE:** You **must** log into the Dev Grafana in your browser **before** running `switch-to-grafana-admin.sh`. The script looks up your user in Grafana's database -- if you haven't logged in, the user doesn't exist yet.
 
-From the `multicluster-observability-operator/tools` directory, run the export script with your dashboard name:
+Once you have created or modified dashboards in the dev instance, export them to production using:
 
 ```
 <hub> $ bash generate-dashboard-configmap-yaml.sh "Your Dashboard Name"
-```
-
-This generates a ConfigMap YAML file in the current directory. Apply it to the hub cluster:
-
-```
 <hub> $ oc apply -f your-dashboard-name.yaml -n open-cluster-management-observability
 ```
 
-Make sure that the dashboard is available in the Production Grafana instance in the **Custom** directory.
-
-To clean up the Grafana dev instance when you are done:
+To clean up the dev Grafana instance:
 
 ```
 <hub> $ bash setup-grafana-dev.sh --clean
