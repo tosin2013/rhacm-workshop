@@ -245,16 +245,20 @@ After applying, navigate to the production Grafana instance -> *Dashboards* -> *
 
 image::grafana-custom-dashboards-folder.png[Custom dashboards in Grafana]
 
-Open the *Cluster Node Resources* dashboard. Use the *Cluster* dropdown at the top to switch between managed clusters:
+Open the *Cluster Node Resources* dashboard. Use the *Cluster* dropdown at the top to select `standard-cluster`:
 
 image::cluster-node-resources-dashboard.png[Cluster Node Resources dashboard]
 
-Verify the values match by running on the hub cluster:
+Verify the values match by querying the standard-cluster metrics via Thanos:
 
 [source,bash]
 ----
-<hub> $ oc adm top node
+<hub> $ THANOS_POD=$(oc get pod -n open-cluster-management-observability -l app.kubernetes.io/name=thanos-query -o jsonpath='{.items[0].metadata.name}')
+<hub> $ oc exec -n open-cluster-management-observability $THANOS_POD -c thanos-query -- \
+  curl -s 'http://localhost:9090/api/v1/query?query=node_memory_MemAvailable_bytes{cluster="standard-cluster"}'
 ----
+
+Try switching between `local-cluster`, `standard-cluster`, and `gpu-cluster` in the Cluster dropdown to compare resource availability across your fleet.
 
 === 3.4.2 - Bonus: GPU Monitoring Dashboard
 
