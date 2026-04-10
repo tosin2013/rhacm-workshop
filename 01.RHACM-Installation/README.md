@@ -119,21 +119,29 @@ Replace the placeholders in both cluster YAML files:
 
 The Hive ClusterDeployment requires AWS credentials and the pull secret in each cluster's namespace. Copy them from the central credential.
 
-On **macOS**, replace `base64 -d` with `base64 -D` in the commands below.
-
 ```
-# Set the decode flag for your platform:
-<hub> $ B64D="base64 -d"        # RHEL / Linux
-<hub> $ B64D="base64 -D"        # macOS — use this line instead
-
+# RHEL / Linux:
 <hub> $ for NS in standard-cluster gpu-cluster; do
   oc create namespace $NS --dry-run=client -o yaml | oc apply -f -
   oc create secret generic aws-credentials -n $NS \
-    --from-literal=aws_access_key_id="$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.aws_access_key_id}' | $B64D)" \
-    --from-literal=aws_secret_access_key="$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.aws_secret_access_key}' | $B64D)" \
+    --from-literal=aws_access_key_id="$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.aws_access_key_id}' | base64 -d)" \
+    --from-literal=aws_secret_access_key="$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.aws_secret_access_key}' | base64 -d)" \
     --dry-run=client -o yaml | oc apply -f -
   oc create secret generic pull-secret -n $NS \
-    --from-literal=.dockerconfigjson="$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.pullSecret}' | $B64D)" \
+    --from-literal=.dockerconfigjson="$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.pullSecret}' | base64 -d)" \
+    --type=kubernetes.io/dockerconfigjson \
+    --dry-run=client -o yaml | oc apply -f -
+done
+
+# macOS — use base64 -D instead of base64 -d:
+<hub> $ for NS in standard-cluster gpu-cluster; do
+  oc create namespace $NS --dry-run=client -o yaml | oc apply -f -
+  oc create secret generic aws-credentials -n $NS \
+    --from-literal=aws_access_key_id="$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.aws_access_key_id}' | base64 -D)" \
+    --from-literal=aws_secret_access_key="$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.aws_secret_access_key}' | base64 -D)" \
+    --dry-run=client -o yaml | oc apply -f -
+  oc create secret generic pull-secret -n $NS \
+    --from-literal=.dockerconfigjson="$(oc get secret aws-credentials -n aws-credentials -o jsonpath='{.data.pullSecret}' | base64 -D)" \
     --type=kubernetes.io/dockerconfigjson \
     --dry-run=client -o yaml | oc apply -f -
 done

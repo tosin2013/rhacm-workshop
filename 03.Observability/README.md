@@ -240,7 +240,8 @@ Verify the values match by querying the standard-cluster metrics via Thanos:
 ```
 <hub> $ THANOS_POD=$(oc get pod -n open-cluster-management-observability -l app.kubernetes.io/name=thanos-query -o jsonpath='{.items[0].metadata.name}')
 <hub> $ oc exec -n open-cluster-management-observability $THANOS_POD -c thanos-query -- \
-  curl -s 'http://localhost:9090/api/v1/query?query=node_memory_MemAvailable_bytes{cluster="standard-cluster"}'
+  curl -s -G 'http://localhost:9090/api/v1/query' \
+  --data-urlencode 'query=node_memory_MemAvailable_bytes{cluster="standard-cluster"}'
 ```
 
 Try switching between `local-cluster`, `standard-cluster`, and `gpu-cluster` in the Cluster dropdown to compare resource availability across your fleet.

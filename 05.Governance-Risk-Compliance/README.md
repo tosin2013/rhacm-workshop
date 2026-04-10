@@ -21,10 +21,20 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: rhacm-policies
+---
+apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSetBinding
+metadata:
+  name: default
+  namespace: rhacm-policies
+spec:
+  clusterSet: default
 EOF
 
 <hub> $ oc apply -f policies-namespace.yaml
 ```
+
+The `ManagedClusterSetBinding` binds the `default` ManagedClusterSet to the `rhacm-policies` namespace. Without this binding, Placement resources in this namespace cannot select any managed clusters.
 
 ### Step 2 -- Create the Placement resource
 
