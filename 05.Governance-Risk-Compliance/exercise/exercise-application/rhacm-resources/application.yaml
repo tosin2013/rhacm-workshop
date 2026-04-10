@@ -4,6 +4,14 @@ kind: Namespace
 metadata:
   name: mariadb-metrics
 ---
+apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSetBinding
+metadata:
+  name: all-clusters
+  namespace: mariadb-metrics
+spec:
+  clusterSet: all-clusters
+---
 apiVersion: apps.open-cluster-management.io/v1
 kind: Channel
 metadata:
@@ -23,7 +31,7 @@ spec:
     - requiredClusterSelector:
         labelSelector:
           matchLabels:
-            environment: production
+            environment: dev
 ---
 apiVersion: apps.open-cluster-management.io/v1
 kind: Subscription

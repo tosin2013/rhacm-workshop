@@ -7,7 +7,7 @@ metadata:
 apiVersion: cluster.open-cluster-management.io/v1beta2
 kind: ManagedClusterSetBinding
 metadata:
-  name: default
+  name: all-clusters
   namespace: rhacm-policies
 spec:
-  clusterSet: default
+  clusterSet: all-clusters

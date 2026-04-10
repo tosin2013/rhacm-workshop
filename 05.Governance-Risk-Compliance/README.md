@@ -2,7 +2,7 @@
 
 In this exercise you will go through the Compliance features that come with Red Hat Advanced Cluster Management for Kubernetes. You will apply a number of policies to the cluster in order to comply with global security and management standards.
 
-**NOTE:** This exercise depends on the ArgoCD-deployed webserver application from Exercise 4. The application should already be running in the `webserver-dev` namespace on `local-cluster`. Verify with:
+**NOTE:** This exercise depends on the ArgoCD-deployed webserver application from Exercise 4. The application should already be running in the `webserver-dev` namespace on `standard-cluster`. Verify with:
 
 ```
 <hub> $ oc get pods -n webserver-dev
@@ -25,16 +25,16 @@ metadata:
 apiVersion: cluster.open-cluster-management.io/v1beta2
 kind: ManagedClusterSetBinding
 metadata:
-  name: default
+  name: all-clusters
   namespace: rhacm-policies
 spec:
-  clusterSet: default
+  clusterSet: all-clusters
 EOF
 
 <hub> $ oc apply -f policies-namespace.yaml
 ```
 
-The `ManagedClusterSetBinding` binds the `default` ManagedClusterSet to the `rhacm-policies` namespace. Without this binding, Placement resources in this namespace cannot select any managed clusters.
+The `ManagedClusterSetBinding` binds the `all-clusters` ManagedClusterSet to the `rhacm-policies` namespace. Exercise 4 placed `standard-cluster` into the `all-clusters` set, so this binding is required for Placement resources to select it.
 
 ### Step 2 -- Create the Placement resource
 
@@ -57,6 +57,14 @@ spec:
 EOF
 
 <hub> $ oc apply -f placementrule-policies.yaml
+```
+
+Verify that the Placement successfully selected `standard-cluster`:
+
+```
+<hub> $ oc get placement prod-policies-clusters -n rhacm-policies
+NAME                     SUCCEEDED   REASON                  SELECTEDCLUSTERS
+prod-policies-clusters   True        AllDecisionsScheduled   1
 ```
 
 ## Policy #1 - Network Security
