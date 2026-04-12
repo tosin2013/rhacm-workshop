@@ -2,6 +2,13 @@
 
 In this exercise you will go through the Compliance features that come with Open Policy Agent Gatekeeper and the Compliance Operator. You will apply a number of policies to the cluster in order to comply with global security and management standards.
 
+**Context note:** This exercise uses both the hub cluster (`<hub> $`) and `standard-cluster` (`<managed cluster> $`). If you set up named contexts in [Exercise 5](../05.Governance-Risk-Compliance/README.md), switch between them with:
+
+```
+$ oc config use-context hub                # for <hub> $ commands
+$ oc config use-context standard-cluster   # for <managed cluster> $ commands
+```
+
 ## Gatekeeper
 
 In this section you create and manage Gatekeeper policies. The policies are based on the REGO policy language.
@@ -10,9 +17,11 @@ Apply the next policy to the hub cluster. The policy installs the Gatekeeper ope
 Note: This policy is applicable for clusters with environment=dev label.
 
 
+NOTE: The `rhacm-policies` namespace may already exist from Module 01 or 05. The command below is idempotent.
+
 ```
-<hub> $ oc new-project rhacm-policies
-<hub> $ cat >> policy-gatekeeper-operator.yaml << EOF
+<hub> $ oc create namespace rhacm-policies --dry-run=client -o yaml | oc apply -f -
+<hub> $ cat > policy-gatekeeper-operator.yaml << EOF
 ---
 apiVersion: policy.open-cluster-management.io/v1
 kind: Policy
@@ -102,7 +111,7 @@ spec:
             - key: environment
               operator: In
               values:
-                - production
+                - dev
 EOF
 
 <hub> $ oc apply -f policy-gatekeeper-operator.yaml
@@ -113,7 +122,7 @@ EOF
 Apply the next policy to the hub cluster in order to deny the creation of http (not encrypted traffic) routes on the managed clusters -
 
 ```
-<hub> $ cat >> policy-gatekeeper-httpsonly.yaml << EOF
+<hub> $ cat > policy-gatekeeper-httpsonly.yaml << EOF
 ---
 apiVersion: policy.open-cluster-management.io/v1
 kind: Policy
@@ -241,7 +250,7 @@ spec:
             - key: environment
               operator: In
               values:
-                - production
+                - dev
 EOF
 
 <hub> $ oc apply -f policy-gatekeeper-httpsonly.yaml
@@ -294,7 +303,7 @@ You make use the presentation and the previously created policies as a reference
 Check the validity of your policy by creating a violating namespace. The creation of the namespace should be disallowed -
 
 ```
-<managed cluster> $ cat >> gatekeeper-disallowed-namespace.yaml << EOF
+<managed cluster> $ cat > gatekeeper-disallowed-namespace.yaml << EOF
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -363,7 +372,7 @@ kyverno-reports-controller-...                    1/1     Running   0          2
 
 #### Install Kyverno via ACM Policy
 
-Apply the install policy to the hub cluster. The policy creates the Kyverno namespace, OperatorGroup, and Subscription on managed clusters with `environment=production`:
+Apply the install policy to the hub cluster. The policy creates the Kyverno namespace, OperatorGroup, and Subscription on managed clusters with `environment=dev`:
 
 ```
 <hub> $ oc apply -f 06.Advanced-Policy-Management/demo-kyverno/policy-kyverno-install.yaml
@@ -530,7 +539,7 @@ Create a directory for your policy generator configuration:
 Create a `policy-generator.yaml` file:
 
 ```
-<hub> $ cat >> policy-generator.yaml << EOF
+<hub> $ cat > policy-generator.yaml << EOF
 apiVersion: policy.open-cluster-management.io/v1
 kind: PolicyGenerator
 metadata:
@@ -542,7 +551,7 @@ policyDefaults:
   placement:
     name: placement-prod-clusters
     clusterSelectors:
-      environment: production
+      environment: dev
   remediationAction: enforce
   severity: medium
 policies:
@@ -560,7 +569,7 @@ Create the source manifests:
 ```
 <hub> $ mkdir manifests
 
-<hub> $ cat >> manifests/deny-all-networkpolicy.yaml << EOF
+<hub> $ cat > manifests/deny-all-networkpolicy.yaml << EOF
 kind: NetworkPolicy
 apiVersion: networking.k8s.io/v1
 metadata:
@@ -570,7 +579,7 @@ spec:
   ingress: []
 EOF
 
-<hub> $ cat >> manifests/limitrange.yaml << EOF
+<hub> $ cat > manifests/limitrange.yaml << EOF
 apiVersion: v1
 kind: LimitRange
 metadata:
@@ -588,7 +597,7 @@ EOF
 Create a `kustomization.yaml`:
 
 ```
-<hub> $ cat >> kustomization.yaml << EOF
+<hub> $ cat > kustomization.yaml << EOF
 generators:
   - policy-generator.yaml
 EOF
