@@ -43,8 +43,8 @@ Clusters provisioned via Hive in Module 01 store their `kubeadmin` credentials a
 <hub> $ oc get secret <secret-name> -n standard-cluster \
          -o jsonpath='{.data.password}' | base64 -d; echo
 
-# Log into the managed cluster:
-<hub> $ oc login -u kubeadmin -p <password> https://api.standard-cluster.<base-domain>:6443
+# Log into the managed cluster (use the API URL from the first command):
+<hub> $ oc login -u kubeadmin -p <password> <standard-cluster-api-url>
 ----
 
 Repeat the same steps for *gpu-cluster* (using namespace `gpu-cluster`).

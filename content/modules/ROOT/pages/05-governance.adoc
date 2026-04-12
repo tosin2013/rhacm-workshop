@@ -6,23 +6,56 @@ In this exercise you will go through the Compliance features that come with Red 
 
 [NOTE]
 ====
-This exercise depends on the ArgoCD-deployed webserver application from Exercise 4. The application should already be running in the `webserver-dev` namespace on `standard-cluster`. Verify with:
+This exercise depends on the ArgoCD-deployed webserver application from Exercise 4. The application should already be running in the `webserver-dev` namespace on `standard-cluster`. If the application is not running, go back to Exercise 4 and deploy the ApplicationSet first.
 ====
+
+*Context note:* Most commands in this exercise run on the *hub cluster* (`<hub> $`). Some verification steps require access to *standard-cluster* (`<managed cluster> $`). Set up named contexts now so you can switch easily without re-logging in. If you haven't already obtained the credentials, retrieve them from the hub (see also xref:02-cluster-management.adoc[Exercise 2]):
 
 [source,bash]
 ----
-<hub> $ oc get pods -n webserver-dev
+# Name your current hub context:
+<hub> $ oc config rename-context $(oc config current-context) hub
+
+# Retrieve the standard-cluster credentials and API URL:
+<hub> $ SECRET_NAME=$(oc get clusterdeployment standard-cluster -n standard-cluster \
+         -o jsonpath='{.spec.clusterMetadata.adminPasswordSecretRef.name}')
+<hub> $ STANDARD_PWD=$(oc get secret $SECRET_NAME -n standard-cluster -o jsonpath='{.data.password}' | base64 -d)
+<hub> $ STANDARD_URL=$(oc get managedcluster standard-cluster -o jsonpath='{.spec.managedClusterClientConfigs[0].url}')
+
+# Log into standard-cluster and name its context:
+<hub> $ oc login -u kubeadmin -p $STANDARD_PWD $STANDARD_URL
+       $ oc config rename-context $(oc config current-context) standard-cluster
+
+# Switch back to the hub:
+       $ oc config use-context hub
 ----
 
-If the application is not running, go back to Exercise 4 and deploy the ApplicationSet first.
+From now on, switch contexts with:
+
+[source,bash]
+----
+$ oc config use-context hub                # for <hub> $ commands
+$ oc config use-context standard-cluster   # for <managed cluster> $ commands
+----
+
+Verify the webserver application is running on `standard-cluster`:
+
+[source,bash]
+----
+$ oc config use-context standard-cluster
+<standard-cluster> $ oc get pods -n webserver-dev
+$ oc config use-context hub
+----
 
 === Step 1 -- Create the policies namespace
 
 Before creating any policies, you *must* create a namespace to hold the policy CRs. This step is required -- policies will fail to apply without it.
 
+NOTE: If you completed Module 01 Step 4 (GPU Operator policy), the `rhacm-policies` namespace already exists. The commands below are idempotent (`oc apply`) so it is safe to run them again -- this step adds the `all-clusters` ManagedClusterSetBinding that the GPU step did not create.
+
 [source,bash]
 ----
-<hub> $ cat >> policies-namespace.yaml << EOF
+<hub> $ cat > policies-namespace.yaml << EOF
 ---
 apiVersion: v1
 kind: Namespace
@@ -49,7 +82,7 @@ Create a Placement resource to associate the policies below with all clusters th
 
 [source,bash]
 ----
-<hub> $ cat >> placementrule-policies.yaml << EOF
+<hub> $ cat > placementrule-policies.yaml << EOF
 ---
 apiVersion: cluster.open-cluster-management.io/v1beta1
 kind: Placement
@@ -105,7 +138,7 @@ In order to create a _deny all_ NetworkPolicy object on the managed cluster usin
 
 [source,bash]
 ----
-<hub> $ cat >> denyall-networkpolicy-policy.yaml << EOF
+<hub> $ cat > denyall-networkpolicy-policy.yaml << EOF
 ---
 apiVersion: policy.open-cluster-management.io/v1
 kind: Policy
@@ -205,7 +238,7 @@ Adding the NetworkPolicy to the existing policy can be done by running the next 
 
 [source,bash]
 ----
-<hub> $ cat >> networkpolicy-policy.yaml << EOF
+<hub> $ cat > networkpolicy-policy.yaml << EOF
 ---
 apiVersion: policy.open-cluster-management.io/v1
 kind: Policy
@@ -295,7 +328,7 @@ After applying the above policy, the application will be reachable from OpenShif
 
 Make sure that the managed cluster is compliant to the policy by navigating to *Governance* -> *Policies* in the Red Hat Advanced Cluster Management for Kubernetes console.
 
-image::networkpolicy-status.png[networkpolicy-status]
+image::policy-networkpolicy-status.png[policy-networkpolicy-status]
 
 Make sure that the application is accessible now at - *https://<webserver application route>/application.html*.
 
@@ -315,9 +348,9 @@ spec:
   limits:
   - default:
       memory: 512Mi
-      defaultRequest:
+    defaultRequest:
       memory: 256Mi
-      type: Container
+    type: Container
 ----
 
 
@@ -325,7 +358,7 @@ In order to apply the LimitRange object to the managed cluster using Red Hat Adv
 
 [source,bash]
 ----
-<hub> $ cat >> limitrange-policy.yaml << EOF
+<hub> $ cat > limitrange-policy.yaml << EOF
 apiVersion: policy.open-cluster-management.io/v1
 kind: Policy
 metadata:
@@ -386,6 +419,8 @@ EOF
 
 Make sure that the managed cluster is compliant to the policy by navigating to *Governance* -> *Policies* in the Red Hat Advanced Cluster Management for Kubernetes console.
 
+image::policy-limitrange-status.png[policy-limitrange-status]
+
 Make sure that the LimitRange object is created in your managed cluster -
 
 * Validate that the LimitRange object is created in the webserver-dev namespace -
@@ -396,12 +431,12 @@ Make sure that the LimitRange object is created in your managed cluster -
 ----
 
 
-As the admin user in the managed cluster, try to modify the values of the LimitRange resource (change the memory limit from 512Mi to 1024Mi) -
+As the admin user in the managed cluster, try to modify the values of the LimitRange resource. Change the default memory limit from `512Mi` to `1024Mi`, save, and exit the editor:
 
 [source,bash]
 ----
 <managed cluster> $ oc whoami
-admin
+kube:admin
 
 <managed cluster> $ oc edit limitrange/webserver-limit-range -n webserver-dev
 ----
@@ -581,7 +616,7 @@ The mysqld-exporter requires mariadb's connection information in order to connec
 In this scenario, you will pass two templated variables to the mysqld-exporter deployment using a dedicated ConfigMap resource. The variables are merged into a single _connection string_ that the exporter uses to connect to the mariadb database.
 
 * _mariadb Service endpoint_ - The ConfigMap will populate the mariadb Service resource ClusterIP dynamically. The service endpoint might be different between managed clusters, using a template in this scenario can help the stability of the system. The `lookup` function is used to identify the service's ClusterIP - `{{ (lookup "v1" "Service" "mariadb-metrics" "mariadb").spec.clusterIP }}`.
-* _mariadb Root password_ - The ConfigMap will provide the connection password dynamically. The password can be different for database instances in multi cluster environments. Using a template in this scenario can solve inconsistencies between clusters. The `fromSecret` function is used to pull the password from mariadb's secret - `{{ fromSecret "mariadb-metrics" "mariadb" "MYSQL_ROOT_PASSWORD"}}`
+* _mariadb Root password_ - The ConfigMap will provide the connection password dynamically. The password can be different for database instances in multi cluster environments. Using a template in this scenario can solve inconsistencies between clusters. The `fromSecret` function is used to pull the password from mariadb's secret - `{{ ( fromSecret "mariadb-metrics" "mariadb" "MYSQL_ROOT_PASSWORD" ) | base64dec }}`
 
 To further understand the structure of the application, go over the link:exercise/exercise-application[application resources]. All of the application resources are present in this directory besides the ConfigMap resource which is created using a templated policy.
 
@@ -595,7 +630,7 @@ metadata:
   name: metrics-connection-string
   namespace: mariadb-metrics
 data:
-  connection_string: 'root:{{ fromSecret "mariadb-metrics" "mariadb" "MYSQL_ROOT_PASSWORD"}}@({{ (lookup "v1" "Service" "mariadb-metrics" "mariadb").spec.clusterIP }}:3306)/'
+  connection_string: 'root:{{ ( fromSecret "mariadb-metrics" "mariadb" "MYSQL_ROOT_PASSWORD" ) | base64dec }}@({{ (lookup "v1" "Service" "mariadb-metrics" "mariadb").spec.clusterIP }}:3306)/'
 ----
 
 
