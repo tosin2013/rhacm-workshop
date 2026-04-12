@@ -42,8 +42,10 @@ $ oc config use-context hub
 
 Before creating any policies, you **must** create a namespace to hold the policy CRs. This step is required -- policies will fail to apply without it.
 
+> **Note:** If you completed Module 01 Step 4 (GPU Operator policy), the `rhacm-policies` namespace already exists. The commands below are idempotent (`oc apply`) so it is safe to run them again -- this step adds the `all-clusters` ManagedClusterSetBinding that the GPU step did not create.
+
 ```
-<hub> $ cat >> policies-namespace.yaml << EOF
+<hub> $ cat > policies-namespace.yaml << EOF
 ---
 apiVersion: v1
 kind: Namespace
@@ -69,7 +71,7 @@ The `ManagedClusterSetBinding` binds the `all-clusters` ManagedClusterSet to the
 Create a Placement resource to associate the policies below with all clusters that have the `environment=dev` label (i.e., `standard-cluster`).
 
 ```
-<hub> $ cat >> placementrule-policies.yaml << EOF
+<hub> $ cat > placementrule-policies.yaml << EOF
 ---
 apiVersion: cluster.open-cluster-management.io/v1beta1
 kind: Placement
@@ -121,7 +123,7 @@ spec:
 In order to create a _deny all_ NetworkPolicy object on the managed cluster using Red Hat Advanced Cluster Management for Kubernetes, apply the next commands to the hub cluster -
 
 ```
-<hub> $ cat >> denyall-networkpolicy-policy.yaml << EOF
+<hub> $ cat > denyall-networkpolicy-policy.yaml << EOF
 ---
 apiVersion: policy.open-cluster-management.io/v1
 kind: Policy
@@ -216,7 +218,7 @@ spec:
 Adding the NetworkPolicy to the existing policy can be done by running the next command -
 
 ```
-<hub> $ cat >> networkpolicy-policy.yaml << EOF
+<hub> $ cat > networkpolicy-policy.yaml << EOF
 ---
 apiVersion: policy.open-cluster-management.io/v1
 kind: Policy
@@ -324,15 +326,15 @@ spec:
   limits:
   - default:
       memory: 512Mi
-      defaultRequest:
+    defaultRequest:
       memory: 256Mi
-      type: Container
+    type: Container
 ```
 
 In order to apply the LimitRange object to the managed cluster using Red Hat Advanced Cluster Management for Kubernetes, run the next commands -
 
 ```
-<hub> $ cat >> limitrange-policy.yaml << EOF
+<hub> $ cat > limitrange-policy.yaml << EOF
 apiVersion: policy.open-cluster-management.io/v1
 kind: Policy
 metadata:
@@ -400,11 +402,11 @@ Make sure that the LimitRange object is created in your managed cluster -
 <managed cluster> $ oc get limitrange webserver-limit-range -o yaml -n webserver-dev
 ```
 
-As the admin user in the managed cluster, try to modify the values of the LimitRange resource (change the memory limit from 512Mi to 1024Mi) -
+As the admin user in the managed cluster, try to modify the values of the LimitRange resource. Change the default memory limit from `512Mi` to `1024Mi`, save, and exit the editor:
 
 ```
 <managed cluster> $ oc whoami
-admin
+kube:admin
 
 <managed cluster> $ oc edit limitrange/webserver-limit-range -n webserver-dev
 ```
@@ -548,7 +550,7 @@ The mysqld-exporter requires mariadb's connection information in order to connec
 In this scenario, you will pass two templated variables to the mysqld-exporter deployment using a dedicated ConfigMap resource. The variables are merged into a single *connection string* that the exporter uses to connect to the mariadb database.
 
 - _mariadb Service endpoint_ - The ConfigMap will populate the mariadb Service resource ClusterIP dynamically. The service endpoint might be different between managed clusters, using a template in this scenario can help the stability of the system. The `lookup` function is used to identify the service's ClusterIP - `{{ (lookup "v1" "Service" "mariadb-metrics" "mariadb").spec.clusterIP }}`.
-- _mariadb Root password_ - The ConfigMap will provide the connection password dynamically. The password can be different for database instances in multi cluster environments. Using a template in this scenario can solve inconsistencies between clusters. The `fromSecret` function is used to pull the password from mariadb's secret - `{{ fromSecret "mariadb-metrics" "mariadb" "MYSQL_ROOT_PASSWORD"}}`
+- _mariadb Root password_ - The ConfigMap will provide the connection password dynamically. The password can be different for database instances in multi cluster environments. Using a template in this scenario can solve inconsistencies between clusters. The `fromSecret` function is used to pull the password from mariadb's secret - `{{ ( fromSecret "mariadb-metrics" "mariadb" "MYSQL_ROOT_PASSWORD" ) | base64dec }}`
 
 To further understand the structure of the application, go over the [application resources](exercise/exercise-application). All of the application resources are present in this directory besides the ConfigMap resource which is created using a templated policy.
 
@@ -561,7 +563,7 @@ metadata:
   name: metrics-connection-string
   namespace: mariadb-metrics
 data:
-  connection_string: 'root:{{ fromSecret "mariadb-metrics" "mariadb" "MYSQL_ROOT_PASSWORD"}}@({{ (lookup "v1" "Service" "mariadb-metrics" "mariadb").spec.clusterIP }}:3306)/'
+  connection_string: 'root:{{ ( fromSecret "mariadb-metrics" "mariadb" "MYSQL_ROOT_PASSWORD" ) | base64dec }}@({{ (lookup "v1" "Service" "mariadb-metrics" "mariadb").spec.clusterIP }}:3306)/'
 ```
 
 Deploy the templated policy by running the next command on the hub cluster -
