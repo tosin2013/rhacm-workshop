@@ -175,6 +175,7 @@ standard-cluster   standard-cluster   aws        us-east-2   false
 After the gpu-cluster is ready, apply the GPU Operator policy. This ACM policy automatically installs the NVIDIA GPU Operator on any cluster labeled `gpu=true`:
 
 ```
+<hub> $ cd /home/vpcuser/rhacm-workshop
 <hub> $ oc apply -f 01.RHACM-Installation/cluster-provisioning/gpu-operator-policy.yaml
 ```
 
