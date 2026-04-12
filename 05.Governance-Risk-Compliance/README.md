@@ -307,7 +307,7 @@ After applying the above policy, the application will be reachable from OpenShif
 
 Make sure that the managed cluster is compliant to the policy by navigating to **Governance** -> **Policies** in the Red Hat Advanced Cluster Management for Kubernetes console.
 
-![networkpolicy-status](images/networkpolicy-status.png)
+![policy-networkpolicy-status](images/policy-networkpolicy-status.png)
 
 Make sure that the application is accessible now at - **https://&lt;webserver application route>/application.html**.
 
@@ -393,6 +393,8 @@ EOF
 ```
 
 Make sure that the managed cluster is compliant to the policy by navigating to **Governance** -> **Policies** in the Red Hat Advanced Cluster Management for Kubernetes console.
+
+![policy-limitrange-status](images/policy-limitrange-status.png)
 
 Make sure that the LimitRange object is created in your managed cluster -
 
