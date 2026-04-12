@@ -11,6 +11,31 @@ This module introduces AI-powered multicluster operations with Red Hat Advanced 
 - OpenShift GitOps (ArgoCD) is installed on the hub cluster
 - OpenShift Lightspeed is installed on the hub cluster
 
+**Context note:** Most commands run on the **hub cluster** (`<hub> $`). Some verification steps in section 7A benefit from direct access to **gpu-cluster**. If you set up named contexts in [Exercise 5](../05.Governance-Risk-Compliance/README.md), you already have `hub` and `standard-cluster`. Add `gpu-cluster` the same way:
+
+```
+# Retrieve the gpu-cluster credentials and API URL:
+<hub> $ SECRET_NAME=$(oc get clusterdeployment gpu-cluster -n gpu-cluster \
+         -o jsonpath='{.spec.clusterMetadata.adminPasswordSecretRef.name}')
+<hub> $ GPU_PWD=$(oc get secret $SECRET_NAME -n gpu-cluster -o jsonpath='{.data.password}' | base64 -d)
+<hub> $ GPU_URL=$(oc get managedcluster gpu-cluster -o jsonpath='{.spec.managedClusterClientConfigs[0].url}')
+
+# Log into gpu-cluster and name its context:
+<hub> $ oc login -u kubeadmin -p $GPU_PWD $GPU_URL --insecure-skip-tls-verify=true
+       $ oc config rename-context $(oc config current-context) gpu-cluster
+
+# Switch back to the hub:
+       $ oc config use-context hub
+```
+
+From now on, switch contexts with:
+```
+$ oc config use-context hub           # for <hub> $ commands
+$ oc config use-context gpu-cluster   # for <gpu-cluster> $ commands
+```
+
+---
+
 ## 7A - AI Workload Placement via ApplicationSet
 
 In this exercise, you will build a Flask-based GPU inference app from source on the target cluster using an OpenShift BuildConfig, and deploy it via an ArgoCD ApplicationSet that uses ACM's Placement API to route workloads to GPU-enabled clusters.
