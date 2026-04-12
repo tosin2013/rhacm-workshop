@@ -69,7 +69,13 @@ Verify the credential was created:
 aws
 ```
 
-### Optional — Pre-Deployment Prerequisites Check
+### Optional — Raise maxPods Limit and Pre-Deployment Prerequisites Check
+
+SNO hub clusters default to 250 pods, which can be exhausted during later exercises (Observability, ArgoCD). Raise the limit to 350 now — the node reboot (~10-15 min) will complete while you continue with the prerequisites check:
+
+```
+<hub> $ bash scripts/bump-max-pods.sh 350
+```
 
 Each SNO cluster requires ~3 Elastic IPs for NAT gateways (one per AZ). The default AWS quota is 5 EIPs, which is insufficient for two clusters. Run the pre-deployment script to check quotas, clean up orphaned resources, and request a quota increase if needed:
 
@@ -147,8 +153,9 @@ done
 done
 ```
 
-Provision the clusters:
+Provision the clusters (run from the repo root, or adjust the paths if you already `cd`'d into the directory):
 ```
+<hub> $ cd /home/vpcuser/rhacm-workshop
 <hub> $ oc apply -f 01.RHACM-Installation/cluster-provisioning/standard-cluster.yaml
 <hub> $ oc apply -f 01.RHACM-Installation/cluster-provisioning/gpu-cluster.yaml
 ```
