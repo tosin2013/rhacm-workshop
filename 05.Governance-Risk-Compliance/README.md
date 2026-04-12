@@ -10,6 +10,13 @@ In this exercise you will go through the Compliance features that come with Red 
 
 If the application is not running, go back to Exercise 4 and deploy the ApplicationSet first.
 
+> **Context note:** Most commands in this exercise run on the **hub cluster** (`<hub> $`). Some verification steps later require access to the **managed cluster** (`<managed cluster> $`). If you haven't already, obtain the `standard-cluster` credentials as described in [Exercise 2](../02.Cluster-Management/README.md):
+> ```
+> <hub> $ oc get secret -n standard-cluster -o name | grep kubeadmin
+> <hub> $ oc get secret <secret-name> -n standard-cluster -o jsonpath='{.data.password}' | base64 -d; echo
+> <hub> $ oc login -u kubeadmin -p <password> https://api.standard-cluster.<base-domain>:6443
+> ```
+
 ### Step 1 -- Create the policies namespace
 
 Before creating any policies, you **must** create a namespace to hold the policy CRs. This step is required -- policies will fail to apply without it.
