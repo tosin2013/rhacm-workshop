@@ -180,6 +180,13 @@ After the gpu-cluster is ready, apply the GPU Operator policy. This ACM policy a
 <hub> $ oc apply -f 01.RHACM-Installation/cluster-provisioning/gpu-operator-policy.yaml
 ```
 
+Verify the policy was created and check its compliance status:
+```
+<hub> $ oc get policy -n rhacm-policies
+NAME                           REMEDIATION ACTION   COMPLIANCE STATE   AGE
+policy-nvidia-gpu-operator     enforce              Compliant          ...
+```
+
 ### Step 5 - Verify All Clusters
 
 Once provisioning completes, verify all managed clusters are available:
