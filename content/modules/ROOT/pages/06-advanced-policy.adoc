@@ -500,7 +500,8 @@ Run the next command to deploy the Compliance Operator using an RHACM policy -
 
 [source,bash]
 ----
-<hub> $ oc apply -f https://raw.githubusercontent.com/tosin2013/rhacm-workshop/master/06.Advanced-Policy-Management/exercise-compliance-operator/policy-compliance-operator.yaml
+<hub> $ cd /home/vpcuser/rhacm-workshop
+<hub> $ oc apply -f 06.Advanced-Policy-Management/exercise-compliance-operator/policy-compliance-operator.yaml
 ----
 
 
@@ -520,7 +521,7 @@ Now that the Compliance Operator is deployed, initiate a compliance scan using a
 
 [source,bash]
 ----
-<hub> $ oc apply -f https://raw.githubusercontent.com/tosin2013/rhacm-workshop/master/06.Advanced-Policy-Management/exercise-compliance-operator/policy-moderate-scan.yaml
+<hub> $ oc apply -f 06.Advanced-Policy-Management/exercise-compliance-operator/policy-moderate-scan.yaml
 ----
 
 
@@ -590,8 +591,8 @@ placementBindingDefaults:
 policyDefaults:
   namespace: rhacm-policies
   placement:
-    name: placement-prod-clusters
-    clusterSelectors:
+    name: placement-dev-clusters
+    labelSelector:
       environment: dev
   remediationAction: enforce
   severity: medium

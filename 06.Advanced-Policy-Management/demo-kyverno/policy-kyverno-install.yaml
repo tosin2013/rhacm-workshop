@@ -87,4 +87,4 @@ spec:
             - key: environment
               operator: In
               values:
-                - production
+                - dev

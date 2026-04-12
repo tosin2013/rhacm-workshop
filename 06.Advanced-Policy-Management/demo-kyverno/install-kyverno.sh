@@ -73,7 +73,7 @@ spec:
             - key: environment
               operator: In
               values:
-                - production
+                - dev
 PLACEMENT_EOF
 
 # ── Apply ACM Kyverno policies ───────────────────────────────────────────────

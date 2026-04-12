@@ -80,7 +80,7 @@ spec:
             - key: environment
               operator: In
               values:
-                - production
+                - dev
 ---
 apiVersion: policy.open-cluster-management.io/v1
 kind: PlacementBinding
