@@ -325,10 +325,23 @@ The Kyverno community operator available via OLM may not install reliably. An au
 
 **Prerequisites:** `oc`, `helm`, and a kubeconfig for the managed cluster.
 
+If `helm` is not already installed, install it:
+
+```
+<hub> $ curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+<hub> $ helm version
+```
+
+Export the managed-cluster kubeconfig so the script can reach standard-cluster:
+
+```
+<hub> $ oc config view --minify --flatten --context=standard-cluster > /tmp/standard-cluster-kubeconfig
+```
+
 Run the script from the hub:
 
 ```
-<hub> $ export MANAGED_KUBECONFIG=<path-to-managed-cluster-kubeconfig>
+<hub> $ export MANAGED_KUBECONFIG=/tmp/standard-cluster-kubeconfig
 <hub> $ bash 06.Advanced-Policy-Management/demo-kyverno/install-kyverno.sh
 ```
 
@@ -517,7 +530,14 @@ The **Policy Generator** is the modern, recommended approach to managing RHACM p
 
 For full documentation, see [Migrate to RHACM Policy Generator](https://developers.redhat.com/articles/2025/02/07/migrate-rhacm-policy-generator-openshift-416).
 
-### Install the Policy Generator Plugin
+### Install Kustomize and the Policy Generator Plugin
+
+If `kustomize` is not already installed, install the standalone binary:
+
+```
+<hub> $ curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s -- ${HOME}/.local/bin
+<hub> $ kustomize version
+```
 
 The Policy Generator is a Kustomize plugin. Install it on your workstation:
 
