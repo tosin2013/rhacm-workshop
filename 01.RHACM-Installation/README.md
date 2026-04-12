@@ -176,6 +176,7 @@ After the gpu-cluster is ready, apply the GPU Operator policy. This ACM policy a
 
 ```
 <hub> $ cd /home/vpcuser/rhacm-workshop
+<hub> $ oc create namespace rhacm-policies --dry-run=client -o yaml | oc apply -f -
 <hub> $ oc apply -f 01.RHACM-Installation/cluster-provisioning/gpu-operator-policy.yaml
 ```
 
