@@ -4,20 +4,38 @@ In this exercise you will go through the Compliance features that come with Red 
 
 **NOTE:** This exercise depends on the ArgoCD-deployed webserver application from Exercise 4. The application should already be running in the `webserver-dev` namespace on `standard-cluster`. If the application is not running, go back to Exercise 4 and deploy the ApplicationSet first.
 
-**Context note:** Most commands in this exercise run on the **hub cluster** (`<hub> $`). Some verification steps require access to **standard-cluster** (`<managed cluster> $`). Log into `standard-cluster` now so you can switch between contexts as needed. If you haven't already obtained the credentials, retrieve them from the hub (see also [Exercise 2](../02.Cluster-Management/README.md)):
+**Context note:** Most commands in this exercise run on the **hub cluster** (`<hub> $`). Some verification steps require access to **standard-cluster** (`<managed cluster> $`). Set up named contexts now so you can switch easily without re-logging in. If you haven't already obtained the credentials, retrieve them from the hub (see also [Exercise 2](../02.Cluster-Management/README.md)):
 
 ```
-<hub> $ oc get clusterdeployment standard-cluster -n standard-cluster \
-         -o jsonpath='{.spec.clusterMetadata.adminPasswordSecretRef.name}'
-<hub> $ oc get secret <secret-name> -n standard-cluster -o jsonpath='{.data.password}' | base64 -d; echo
-<hub> $ oc get managedcluster standard-cluster -o jsonpath='{.spec.managedClusterClientConfigs[0].url}'
-<hub> $ oc login -u kubeadmin -p <password> <standard-cluster-api-url>
+# Name your current hub context:
+<hub> $ oc config rename-context $(oc config current-context) hub
+
+# Retrieve the standard-cluster credentials and API URL:
+<hub> $ SECRET_NAME=$(oc get clusterdeployment standard-cluster -n standard-cluster \
+         -o jsonpath='{.spec.clusterMetadata.adminPasswordSecretRef.name}')
+<hub> $ STANDARD_PWD=$(oc get secret $SECRET_NAME -n standard-cluster -o jsonpath='{.data.password}' | base64 -d)
+<hub> $ STANDARD_URL=$(oc get managedcluster standard-cluster -o jsonpath='{.spec.managedClusterClientConfigs[0].url}')
+
+# Log into standard-cluster and name its context:
+<hub> $ oc login -u kubeadmin -p $STANDARD_PWD $STANDARD_URL
+       $ oc config rename-context $(oc config current-context) standard-cluster
+
+# Switch back to the hub:
+       $ oc config use-context hub
+```
+
+From now on, switch contexts with:
+```
+$ oc config use-context hub                # for <hub> $ commands
+$ oc config use-context standard-cluster   # for <managed cluster> $ commands
 ```
 
 Verify the webserver application is running on `standard-cluster`:
 
 ```
+$ oc config use-context standard-cluster
 <standard-cluster> $ oc get pods -n webserver-dev
+$ oc config use-context hub
 ```
 
 ### Step 1 -- Create the policies namespace
