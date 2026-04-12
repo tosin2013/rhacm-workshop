@@ -9,7 +9,8 @@ In this exercise you will go through the Compliance features that come with Red 
 ```
 <hub> $ oc get secret -n standard-cluster -o name | grep kubeadmin
 <hub> $ oc get secret <secret-name> -n standard-cluster -o jsonpath='{.data.password}' | base64 -d; echo
-<hub> $ oc login -u kubeadmin -p <password> https://api.standard-cluster.<base-domain>:6443
+<hub> $ oc get managedcluster standard-cluster -o jsonpath='{.spec.managedClusterClientConfigs[0].url}'
+<hub> $ oc login -u kubeadmin -p <password> <standard-cluster-api-url>
 ```
 
 Verify the webserver application is running on `standard-cluster`:
