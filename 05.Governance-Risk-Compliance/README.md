@@ -7,7 +7,8 @@ In this exercise you will go through the Compliance features that come with Red 
 **Context note:** Most commands in this exercise run on the **hub cluster** (`<hub> $`). Some verification steps require access to **standard-cluster** (`<managed cluster> $`). Log into `standard-cluster` now so you can switch between contexts as needed. If you haven't already obtained the credentials, retrieve them from the hub (see also [Exercise 2](../02.Cluster-Management/README.md)):
 
 ```
-<hub> $ oc get secret -n standard-cluster -o name | grep kubeadmin
+<hub> $ oc get clusterdeployment standard-cluster -n standard-cluster \
+         -o jsonpath='{.spec.clusterMetadata.adminPasswordSecretRef.name}'
 <hub> $ oc get secret <secret-name> -n standard-cluster -o jsonpath='{.data.password}' | base64 -d; echo
 <hub> $ oc get managedcluster standard-cluster -o jsonpath='{.spec.managedClusterClientConfigs[0].url}'
 <hub> $ oc login -u kubeadmin -p <password> <standard-cluster-api-url>
