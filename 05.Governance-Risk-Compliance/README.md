@@ -2,20 +2,21 @@
 
 In this exercise you will go through the Compliance features that come with Red Hat Advanced Cluster Management for Kubernetes. You will apply a number of policies to the cluster in order to comply with global security and management standards.
 
-**NOTE:** This exercise depends on the ArgoCD-deployed webserver application from Exercise 4. The application should already be running in the `webserver-dev` namespace on `standard-cluster`. Verify with:
+**NOTE:** This exercise depends on the ArgoCD-deployed webserver application from Exercise 4. The application should already be running in the `webserver-dev` namespace on `standard-cluster`. If the application is not running, go back to Exercise 4 and deploy the ApplicationSet first.
+
+**Context note:** Most commands in this exercise run on the **hub cluster** (`<hub> $`). Some verification steps require access to **standard-cluster** (`<managed cluster> $`). Log into `standard-cluster` now so you can switch between contexts as needed. If you haven't already obtained the credentials, retrieve them from the hub (see also [Exercise 2](../02.Cluster-Management/README.md)):
 
 ```
-<hub> $ oc get pods -n webserver-dev
+<hub> $ oc get secret -n standard-cluster -o name | grep kubeadmin
+<hub> $ oc get secret <secret-name> -n standard-cluster -o jsonpath='{.data.password}' | base64 -d; echo
+<hub> $ oc login -u kubeadmin -p <password> https://api.standard-cluster.<base-domain>:6443
 ```
 
-If the application is not running, go back to Exercise 4 and deploy the ApplicationSet first.
+Verify the webserver application is running on `standard-cluster`:
 
-> **Context note:** Most commands in this exercise run on the **hub cluster** (`<hub> $`). Some verification steps later require access to the **managed cluster** (`<managed cluster> $`). If you haven't already, obtain the `standard-cluster` credentials as described in [Exercise 2](../02.Cluster-Management/README.md):
-> ```
-> <hub> $ oc get secret -n standard-cluster -o name | grep kubeadmin
-> <hub> $ oc get secret <secret-name> -n standard-cluster -o jsonpath='{.data.password}' | base64 -d; echo
-> <hub> $ oc login -u kubeadmin -p <password> https://api.standard-cluster.<base-domain>:6443
-> ```
+```
+<standard-cluster> $ oc get pods -n webserver-dev
+```
 
 ### Step 1 -- Create the policies namespace
 
