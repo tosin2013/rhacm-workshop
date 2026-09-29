@@ -7,9 +7,9 @@ placementBindingDefaults:
 policyDefaults:
   namespace: rhacm-policies
   placement:
+    name: placement-dev-clusters
     labelSelector:
-      matchLabels:
-        environment: production
+      environment: dev
   remediationAction: enforce
   severity: medium
 policies:
