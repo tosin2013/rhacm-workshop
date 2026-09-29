@@ -187,7 +187,7 @@ After the creation of the objects, navigate to **Governance** -> **Policies** in
 
 Make sure that the policy is effective by trying to navigate to the application once again - **https://&lt;webserver application route>/application.html**. (The application should not be accessible).
 
-In order to understand the difference between the various _complianceType_ values you can consult [https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.15/html-single/governance/index#configuration-policy-yaml-table](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.15/html-single/governance/index#configuration-policy-yaml-table):
+In order to understand the difference between the various _complianceType_ values you can consult [https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.17/html-single/governance/index#configuration-policy-yaml-table](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.17/html-single/governance/index#configuration-policy-yaml-table):
  * `musthave` will enforce the object and a subset of the fields
  * `mustonlyhave` will enforce the object with name and all of its fields
  * `mustnothave` will enforce that an object with the same name or labels must not exist

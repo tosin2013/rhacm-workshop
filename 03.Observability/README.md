@@ -55,7 +55,7 @@ You should see ~34 pods running including `observability-grafana`, `observabilit
 
 Now, that all pods are running, log into RHACM's dashboard and navigate to **Clusters** -> **Grafana (top right side)**. Make sure that the dashboards are available and graphs are present.
 
-### For additional install methods refer to the [official documentation](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.15/html-single/observability/index)
+### For additional install methods refer to the [official documentation](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.17/html-single/observability/index)
 You can also refer to this quick start for AWS Deployments and ODF Deployments  [Install MultiCluster Observability](https://github.com/tosin2013/acm-multi-cluster-dashboard/blob/main/install-acm-observability-service.md)
 
 ### 3.2 - Explore the default Grafana dashboards

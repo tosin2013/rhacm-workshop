@@ -1,6 +1,6 @@
 ---
 site:
-  title: RHACM Workshop - ACM 2.15 on OCP 4.20
+  title: RHACM Workshop - ACM 2.17 on OCP 4.22
   url: https://github.com/tosin2013/rhacm-workshop
   start_page: modules::index.adoc
 

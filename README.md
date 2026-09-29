@@ -2,7 +2,7 @@
 
 This document contains exercises and demonstrations for the Advanced Cluster Management workshop. The workshop is presented in - [https://docs.google.com/presentation/d/114op7K07TIOUhpTO1tVZUrJj6r1gzl6S7bu5OZl6rr8/edit?usp=sharing](https://docs.google.com/presentation/d/114op7K07TIOUhpTO1tVZUrJj6r1gzl6S7bu5OZl6rr8/edit?usp=sharing)
 
-**Target versions:** OpenShift 4.20 / RHACM 2.15
+**Target versions:** OpenShift 4.22 / RHACM 2.17
 
 ## Base Environment
 
@@ -11,7 +11,7 @@ This workshop was built on top of the **[Advanced Cluster Management for Kuberne
 ## Prerequisites
 
 Participants in the workshop must have -
-* A running OpenShift 4.20+ cluster with RHACM 2.15 installed (see **Base Environment** above).
+* A running OpenShift 4.22+ cluster with RHACM 2.17 installed (see **Base Environment** above).
 * The `oc` CLI tool installed (the setup script will attempt to install it if missing).
 * The `kubectl` CLI tool installed (the setup script will attempt to install it if missing).
 * The `git` CLI tool installed.
@@ -85,7 +85,7 @@ This script lives in the `multicluster-observability-operator` repo, not this wo
 ## Workshop Architecture
 
 ```
-Hub Cluster (OCP 4.20, ACM 2.15, SNO)
+Hub Cluster (OCP 4.22, ACM 2.17, SNO)
   ├── local-cluster   (self-managed, labels: environment=hub)
   ├── standard-cluster (Hive AWS SNO, labels: environment=dev / environment=production)
   └── gpu-cluster      (Hive AWS SNO g6.4xlarge, labels: gpu=true, accelerator=nvidia-l4)

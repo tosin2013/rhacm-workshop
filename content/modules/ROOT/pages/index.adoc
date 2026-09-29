@@ -60,7 +60,7 @@ The setup script will:
 
 [source]
 ----
-Hub Cluster (OCP 4.20, ACM 2.15, SNO)
+Hub Cluster (OCP 4.22, ACM 2.17, SNO)
   ├── local-cluster   (self-managed, labels: environment=hub)
   ├── standard-cluster (Hive AWS SNO, labels: environment=dev)
   └── gpu-cluster      (Hive AWS SNO g6.4xlarge, labels: gpu=true, accelerator=nvidia-l4)

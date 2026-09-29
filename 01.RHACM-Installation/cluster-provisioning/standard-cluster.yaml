@@ -15,7 +15,7 @@ stringData:
     apiVersion: v1
     metadata:
       name: standard-cluster
-    baseDomain: <YOUR_BASE_DOMAIN>
+    baseDomain: sandbox125.opentlc.com
     controlPlane:
       architecture: amd64
       hyperthreading: Enabled
@@ -45,7 +45,7 @@ stringData:
       aws:
         region: us-east-2
     pullSecret: ""
-    sshKey: "<YOUR_SSH_PUBLIC_KEY>"
+    sshKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK63BZFFxi1SLzxn/gpfz5qQheWHEEQxBJjdTPl/sKLe vpcuser@rhacm-workshop"
 ---
 apiVersion: hive.openshift.io/v1
 kind: ClusterDeployment
@@ -56,7 +56,7 @@ metadata:
     cloud: AWS
     vendor: OpenShift
 spec:
-  baseDomain: <YOUR_BASE_DOMAIN>
+  baseDomain: sandbox125.opentlc.com
   clusterName: standard-cluster
   installAttemptsLimit: 1
   installed: false
@@ -69,7 +69,7 @@ spec:
     installConfigSecretRef:
       name: standard-cluster-install-config
     imageSetRef:
-      name: img4.20.16-multi-appsub
+      name: img4.22.9-multi-appsub
   pullSecretRef:
     name: pull-secret
 ---

@@ -1,6 +1,6 @@
 # Exercise 1 - Advanced Cluster Management Installation & Cluster Provisioning
 
-In this exercise you will verify the Advanced Cluster Management for Kubernetes installation and provision managed clusters using Hive. This workshop targets **Red Hat Advanced Cluster Management 2.15** on **OpenShift 4.20**.
+In this exercise you will verify the Advanced Cluster Management for Kubernetes installation and provision managed clusters using Hive. This workshop targets **Red Hat Advanced Cluster Management 2.17** on **OpenShift 4.22**.
 
 > **Tip:** This workshop was built on top of the **[Advanced Cluster Management for Kubernetes Demo](https://catalog.demo.redhat.com/catalog?item=babylon-catalog-prod/published.ocp4-acm-demo.prod&utm_source=webapp&utm_medium=share-link)** from the Red Hat Demo Platform. Order this catalog item to get a pre-configured hub cluster with ACM already installed, then continue with the verification steps below.
 
@@ -8,7 +8,7 @@ In this exercise you will verify the Advanced Cluster Management for Kubernetes 
 > - Replace `base64 -d` with `base64 -D` (or install GNU coreutils: `brew install coreutils` and use `gbase64 -d`).
 > - Replace `sed -i "s|...|...|g"` with `sed -i '' "s|...|...|g"` (BSD sed requires an explicit empty backup suffix), or install GNU sed: `brew install gnu-sed` and use `gsed`.
 
-https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.15
+https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.17
 
 ## 1.1 Verify ACM Installation
 
@@ -20,18 +20,18 @@ NAMESPACE                 NAME              STATUS    AGE
 open-cluster-management   multiclusterhub   Running   ...
 
 <hub> $ oc get csv -n open-cluster-management | grep advanced-cluster-management
-advanced-cluster-management.v2.15.1   Advanced Cluster Management for Kubernetes   2.15.1   Succeeded
+advanced-cluster-management.v2.17.2   Advanced Cluster Management for Kubernetes   2.17.2   Succeeded
 ```
 
 Confirm the subscription channel:
 ```
 <hub> $ oc get sub advanced-cluster-management -n open-cluster-management -o jsonpath='{.spec.channel}'
-release-2.15
+release-2.17
 ```
 
 ## 1.2 Install ACM (If Not Pre-Installed)
 
-If ACM is not yet installed, install the operator by selecting **release-2.15** as the update channel. Follow the steps in the **Installation** section of the workshop's presentation - [https://docs.google.com/presentation/d/114op7K07TIOUhpTO1tVZUrJj6r1gzl6S7bu5OZl6rr8/edit?usp=sharing](https://docs.google.com/presentation/d/114op7K07TIOUhpTO1tVZUrJj6r1gzl6S7bu5OZl6rr8/edit?usp=sharing).
+If ACM is not yet installed, install the operator by selecting **release-2.17** as the update channel. Follow the steps in the **Installation** section of the workshop's presentation - [https://docs.google.com/presentation/d/114op7K07TIOUhpTO1tVZUrJj6r1gzl6S7bu5OZl6rr8/edit?usp=sharing](https://docs.google.com/presentation/d/114op7K07TIOUhpTO1tVZUrJj6r1gzl6S7bu5OZl6rr8/edit?usp=sharing).
 
 Alternatively, deploy using Kustomize:
 ```

@@ -154,10 +154,10 @@ OCP_VERSION=$(oc get clusterversion version -o jsonpath='{.status.desired.versio
 pass "OCP version: $OCP_VERSION"
 
 OCP_MAJOR_MINOR=$(echo "$OCP_VERSION" | cut -d. -f1,2)
-if [[ "$OCP_MAJOR_MINOR" == "4.20" ]]; then
-  pass "OCP 4.20 confirmed (workshop target)"
+if [[ "$OCP_MAJOR_MINOR" == "4.22" ]]; then
+  pass "OCP 4.22 confirmed (workshop target)"
 else
-  warn "OCP version is $OCP_MAJOR_MINOR — workshop targets 4.20. Some exercises may need adjustment."
+  warn "OCP version is $OCP_MAJOR_MINOR — workshop targets 4.22. Some exercises may need adjustment."
 fi
 
 header "Node Resources"
