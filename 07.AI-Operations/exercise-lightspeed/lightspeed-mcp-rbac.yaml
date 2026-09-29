@@ -9,5 +9,8 @@ roleRef:
   name: cluster-reader
 subjects:
   - kind: ServiceAccount
+    name: openshift-mcp-server
+    namespace: openshift-lightspeed
+  - kind: ServiceAccount
     name: lightspeed-app-server
     namespace: openshift-lightspeed

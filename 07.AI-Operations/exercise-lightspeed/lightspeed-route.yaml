@@ -7,11 +7,10 @@ metadata:
 spec:
   to:
     kind: Service
-    name: lightspeed-mcp-server
+    name: openshift-mcp-server
     weight: 100
   port:
-    targetPort: mcp
+    targetPort: https
   tls:
-    termination: edge
-    insecureEdgeTerminationPolicy: Redirect
+    termination: passthrough
   wildcardPolicy: None
